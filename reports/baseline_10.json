@@ -1,0 +1,234 @@
+{
+  "timestamp": "2026-01-09T14:18:07.715907",
+  "model": {
+    "name": "Qwen2.5-Coder-1.5B-Instruct",
+    "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M"
+  },
+  "inference_params": {
+    "n_ctx": 4096,
+    "n_predict": 1024,
+    "threads": 8,
+    "n_gpu_layers": 99,
+    "temp": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "llama_cpp_rev": "b4823",
+  "total_prompts": 10,
+  "results": [
+    {
+      "prompt_id": 1,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment déclarer une variable mutable en Rust ?",
+      "response": "Pour déclarer une variable mutable en Rust, utilisez la syntaxe `let mut nom = valeur;`, où `nom` est le nom de votre variable. La variable sera alors modifiable après sa déclaration. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 2.3333333333333335
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": false,
+          "expected_topics": 0.6666666666666666,
+          "response_length": false
+        },
+        "word_count": 34,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 2,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quelle est la différence entre let et const en Rust ?",
+      "response": "`let` et `const` sont deux mots-clés en Rust pour déclarer des variables, mais ils ont des différences importantes. \n\n- **Type de données**: `let` peut avoir un type de donnée défini à l'avance (telle que `i32`, `f64`, `String`), tandis que `const` doit avoir un type qui est déterminé lors de la compilation ( comme des nombres entiers, des chaînes de caractères).\n\n- **Durabilité**: Les variables créées avec `let` sont temporaires et existent pendant toute la durée du bloc dans lequel elles sont déclarées. Les variables créées avec `const` doivent avoir une valeur qui est résolue à l'exécution du code (pas pendant la compilation). Cela signifie que les constantes ne peuvent pas être changées après leur initialisation.\n\n- **Scénarios de utilisation**: Utilisez `let` pour déclarer des variables qui nécessitent des modifications ou une durée d'existence limitée. Utilisez `const` pour déclarer des valeurs qui doivent rester les mêmes lors de la compilation et qui nécessitent un type de donnée immuable.\n\nVoici quelques exemples :\n\n```rust\n// Déclaration avec let\nlet x = 10;\n\n// Déclaration avec const (cette variable doit être résolue à l'exécution)\nconst Y: i32 = 20;\n```\n\nEn résumé, `let` est utilisé pour déclarer des variables qui peuvent changer de valeur pendant le temps et dont le type peut être défini au moment de la création, tandis que `const` est utilisé pour déclarer des valeurs immutables qui doivent rester les mêmes lors de la compilation. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 238,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 3,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment afficher du texte dans la console en Rust ?",
+      "response": "Pour afficher du texte dans la console en Rust, vous utilisez l'instruction `println!`. Voici un exemple :\n\n```rust\nfn main() {\n    println!(\"Bonjour, monde!\");\n}\n```\n\nDans cet exemple, `\"Bonjour, monde!\"` est le texte que vous souhaitez afficher. `println!` est une fonction qui prend une chaîne de caractères comme premier argument et affiche ce texte dans la console avec un retour à la ligne.\n\nVous pouvez également utiliser `print!` pour afficher des textes sans saut de ligne :\n\n```rust\nfn main() {\n    print!(\"Bonjour, monde!\");\n}\n```\n\nLa différence est que `println!` ajoute automatiquement le caractère de retour à la ligne (`\\n`) à la fin du texte. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.666666666666667
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.3333333333333333,
+          "response_length": true
+        },
+        "word_count": 108,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 4,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quels sont les types primitifs scalaires en Rust ?",
+      "response": "En Rust, les types primitifs scalaires sont : i8 (entier signé), u8 (entier non signé), i16, u16, i32, u32, i64, u64, f32 et f64. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 1.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.5,
+          "response_length": false
+        },
+        "word_count": 27,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 5,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?",
+      "response": "Pour créer une fonction en Rust qui retourne une valeur, vous devez déclarer la fonction avec un type d'entrée et un type de sortie. Voici comment faire :\n\n```rust\nfn addition(a: i32, b: i32) -> i32 {\n    a + b\n}\n\nfn main() {\n    let result = addition(5, 10);\n    println!(\"Le résultat est {}\", result);\n}\n```\n\nDans cet exemple, `addition` est une fonction qui prend deux entiers (i32) en entrée et retourne un entier également. Le type de sortie est spécifié après le point d'exclamation (`-> i32`). Dans `main`, nous appelons la fonction avec les arguments 5 et 10, puis stocke le résultat dans la variable `result`. Enfin, nous affichons le résultat avec `println!()`. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 117,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 6,
+      "category": "ownership",
+      "difficulty": "intermediaire",
+      "prompt": "Explique-moi le concept d'ownership en Rust avec un exemple simple.",
+      "response": "Ownership est une notion cruciale en Rust qui définit qui possède un objet et qui peut accéder à ses données. Dans Rust, chaque objet a son propre espace mémoire et la所有权 est transférée entre les variables ou des fonctions lorsqu'une variable prend possession d'un autre.\n\nImaginez que vous avez une boîte de crayons, et le ownership s'applique à ce concept :\n\n```rust\nlet mut box_of_crayons = vec![1, 2, 3];\n```\n\nDans cet exemple, `box_of_crayons` est la variable qui possède le所有权 du vecteur. Le vecteur a son propre espace mémoire alloué par Rust.\n\nSi vous essayez de modifier le vecteur sans avoir ownership :\n\n```rust\nlet mut box_of_crayons = vec![1, 2, 3];\nbox_of_crayons[0] = 4; // Erreur: Cannot assign to immutable variable `box_of_crayons`\n```\n\nRust va générer une erreur car vous essayez de modifier un objet qui n'a pas le所有权. Pour corriger ce problème, il faut changer la variable en référence :\n\n```rust\nlet mut box_of_crayons = vec![1, 2, 3];\n*box_of_crayons.get_mut(0).unwrap() = 4;\n```\n\nDans cet exemple, `&mut` signifie que vous voulez accéder à l'objet de manière mutable. Le `get_mut` retourne un pointeur mutable vers le premier élément du vecteur, et il faut utiliser `unwrap()` pour gérer la panique en cas d'indexation erronée.\n\nÀ retenir: Chaque variable a son propre espace mémoire et le ownership est transféré entre les variables. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.0000000000000004
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.0,
+          "response_length": true
+        },
+        "word_count": 222,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 7,
+      "category": "ownership",
+      "difficulty": "intermediaire",
+      "prompt": "Pourquoi ce code ne compile pas : let s1 = String::from(\"hello\"); let s2 = s1; println!(\"{}\", s1);",
+      "response": "Le code ne compile pas car vous essayez d'assigner une copie de la chaîne `s1` à `s2`, ce qui n'est pas possible en Rust. La chaîne est immuable, elle ne peut être modifiée une fois créée. Pour passer une chaîne par référence, vous devez utiliser le mot-clé `&`. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 1.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 51,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 8,
+      "category": "ownership",
+      "difficulty": "intermediaire",
+      "prompt": "Comment passer une String à une fonction sans perdre la propriété ?",
+      "response": "Pour passer une `String` à une fonction en Rust sans perdre la propriété, utilisez la syntaxe pour passer un argument par référence (`&`) ou par le borrow (`&mut`). Par exemple :\n```rust\nfn main() {\n    let s = String::from(\"Hello world!\");\n    println!(\"{}\", &s); // Affiche \"Hello world!\"\n}\n```\nDans ce cas, `&s` est une référence à la `String`. Lorsque vous utilisez cette référence pour afficher le contenu de `s`, Rust conserve le contrôle sur la `String` jusqu'à ce que votre fonction ait terminé. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.0000000000000004
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": false
+        },
+        "word_count": 86,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 9,
+      "category": "borrowing",
+      "difficulty": "intermediaire",
+      "prompt": "Quelle est la différence entre &T et &mut T ?",
+      "response": "La difference entre `&T` et `&mut T` dans le langage Rust est crucial pour comprendre les restrictions et les libertés qui chacun offre :\n\n- **`&T`** : C'est une référence constante vers un objet de type `T`. Les modifications que vous faites à cette référence ne modifient pas l'objet original. Les objets pointés par des références constantes sont immutables.\n\n  ```rust\n  let x = 5;\n  let y: &i32 = &x; // y est une référence constante vers x\n\n  *y += 1; // C'est incorrect car y est une référence constante\n  ```\n\n- **`&mut T`** : C'est une référence mutable vers un objet de type `T`. Les modifications que vous faites à cette référence peuvent modifier l'objet original. Les objets pointés par des références mutables sont modifiables.\n\n  ```rust\n  let mut x = 5;\n  let y: &mut i32 = &mut x; // y est une référence mutable vers x\n\n  *y += 1; // C'est correct, car y est une référence mutable\n  ```\n\n### Exemples Idiomatiques\n\n#### Récursivité avec Pointers\n\n```rust\nfn factorial(n: usize) -> u64 {\n    match n {\n        0 => 1,\n        _ => factorial(n - 1) * n as u64,\n    }\n}\n\nfn main() {\n    println!(\"{}\", factorial(5)); // Output: 120\n}\n```\n\n#### Fonction qui Modifie Argument\n\n```rust\nfn swap(x: &mut i32, y: &mut i32) {\n    let temp = *x;\n    *x = *y;\n    *y = temp;\n}\n\nfn main() {\n    let mut a = 10;\n    let mut b = 20;\n\n    swap(&mut a, &mut b);\n\n    println!(\"a: {}, b: {}\", a, b); // Output: a: 20, b: 10\n}\n```\n\n### Notes Importantes\n\n- Les références mutables sont un point crucial pour le Rust car elles peuvent modifier l'objet original. Il est important de toujours utiliser des références mutables lorsque vous savez que vous allez modifier l'objet.\n  \n- Dans la plupart des cas, les références constantes sont plus appropriées car elles ne modifient pas l'objet original.\n\n#### Références Mutables dans Structures\n\nRust prend en charge les références mutables pour les structures. Cela peut être très utile pour créer des propriétés qui peuvent changer à la fois.\n\n```rust\nstruct Point {\n    x: f64,\n    y: f64,\n}\n\nimpl Point {\n    fn new(x: f64, y: f64) -> Self {\n        Self { x, y }\n    }\n\n    fn move_to(&mut self, x: f64, y: f64) {\n        self.x = x;\n        self.y = y;\n    }\n}\n\nfn main() {\n    let mut p = Point::new(0.0, 0.0);\n\n    p.move_to(1.0, 2.0);\n\n    println!(\"x: {}, y: {}\", p.x, p.y); // Output: x: 1.0, y: 2.0\n}\n```\n\n### Conclusion\n\n- `&T` est une référence constante vers un objet immutable.\n- `&mut T` est une référence mutable vers un objet modifiable.\n\nLa clé est de bien comprendre la différence entre ces deux types de références et comment elles affectent l'objet original. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.666666666666667
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.3333333333333333,
+          "response_length": true
+        },
+        "word_count": 455,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 10,
+      "category": "borrowing",
+      "difficulty": "intermediaire",
+      "prompt": "Pourquoi ne peut-on pas avoir plusieurs références mutables en même temps ?",
+      "response": "Dans Rust, les références mutables sont limitées par le principe d'indépendance des références. En particulier, une fois qu'une référence mutable est créée sur un objet, elle doit être utilisée entièrement pendant la vie du programme pour éviter les bugs de données inconsistentes.\n\nPourquoi cela ? Parceque si vous essayez d'utiliser la même référence mutable pour deux opérations différentes en même temps, le Rust compiler peut détecter une violation de l'indépendance des références. Cela pourrait créer un conflit avec les autres threads ou avec le code qui utilise cette référence.\n\nPour éviter cela, vous devrez utiliser la même variable pour toutes les opérations sur le même objet. Par exemple :\n\n```rust\nfn main() {\n    let mut x = 10;\n    \n    // Utilisation de x pour une seule opération\n    x += 5;\n    \n    // Si on essaie d'utiliser x en deux opérations, cela donnerait un error\n    // x -= 3;  // Cela donnerait un error\n    \n    println!(\"x: {}\", x);\n}\n```\n\nDans cet exemple, `x` est une variable mutante qui est utilisée pour une seule opération (`+= 5`). Si on essaye d'utiliser `x` en deux opérations (à savoir `x -= 3`), ce serait une violation de l'indépendance des références et le programme donnerait un error. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.0000000000000004
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.0,
+          "response_length": true
+        },
+        "word_count": 203,
+        "sections_found": 0
+      }
+    }
+  ]
+}
