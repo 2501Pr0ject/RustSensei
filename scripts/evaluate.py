@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """
 Évaluation RustSensei via llama-cli.
+
+Supporte le mode RAG pour comparaison baseline vs RAG.
 """
 
 import argparse
@@ -21,6 +23,21 @@ PROJECT_ROOT = Path(__file__).parent.parent
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 EVAL_DIR = PROJECT_ROOT / "eval"
 REPORTS_DIR = PROJECT_ROOT / "reports"
+
+# Add app to path for imports
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# RAG retriever (lazy loaded)
+_rag_retriever = None
+
+
+def get_rag_retriever():
+    """Retourne le retriever RAG (lazy loading)."""
+    global _rag_retriever
+    if _rag_retriever is None:
+        from app.rag import RAGRetriever
+        _rag_retriever = RAGRetriever()
+    return _rag_retriever
 
 
 def load_config() -> dict:
@@ -45,10 +62,19 @@ def load_rubric(rubric_file: Path) -> dict:
         return json.load(f)
 
 
-def build_prompt(user_message: str, config: dict) -> str:
+def build_prompt(user_message: str, config: dict, context: str = None) -> str:
     """Construit le prompt avec le template ChatML."""
     system = config["prompt"]["system"]
     template = config["prompt"]["template"]
+
+    # Ajouter le contexte RAG si présent
+    if context:
+        augmented_message = (
+            f"Contexte de la documentation Rust officielle :\n{context}\n\n"
+            f"---\nQuestion : {user_message}"
+        )
+        return template.format(system=system, user=augmented_message)
+
     return template.format(system=system, user=user_message)
 
 
@@ -149,13 +175,37 @@ def evaluate_response(response: str, prompt_data: dict) -> dict:
     }
 
 
-def run_evaluation(prompts: list[dict], config: dict) -> list[dict]:
+def run_evaluation(prompts: list[dict], config: dict, use_rag: bool = False) -> list[dict]:
     """Exécute l'évaluation sur tous les prompts."""
     results = []
+    retriever = None
 
-    for prompt_data in track(prompts, description="Évaluation..."):
+    if use_rag:
+        try:
+            console.print("[dim]Chargement index RAG...[/dim]")
+            retriever = get_rag_retriever()
+            console.print("[green]Mode RAG activé[/green]\n")
+        except FileNotFoundError as e:
+            console.print(f"[red]{e}[/red]")
+            sys.exit(1)
+        except ImportError as e:
+            console.print(f"[red]Dépendances RAG manquantes: {e}[/red]")
+            sys.exit(1)
+
+    mode_desc = "Évaluation (RAG)" if use_rag else "Évaluation"
+
+    for prompt_data in track(prompts, description=f"{mode_desc}..."):
+        # RAG: récupérer le contexte
+        context = None
+        citations = []
+        if retriever:
+            chunks = retriever.retrieve(prompt_data["prompt"])
+            if chunks:
+                context = retriever.format_context(chunks)
+                citations = retriever.get_citations(chunks)
+
         # Construire le prompt
-        full_prompt = build_prompt(prompt_data["prompt"], config)
+        full_prompt = build_prompt(prompt_data["prompt"], config, context=context)
 
         # Appeler llama-cli
         response = call_llama_cli(full_prompt, config)
@@ -163,14 +213,20 @@ def run_evaluation(prompts: list[dict], config: dict) -> list[dict]:
         # Évaluer
         eval_result = evaluate_response(response, prompt_data)
 
-        results.append({
+        result = {
             "prompt_id": prompt_data["id"],
             "category": prompt_data["category"],
             "difficulty": prompt_data["difficulty"],
             "prompt": prompt_data["prompt"],
             "response": response,
             "evaluation": eval_result,
-        })
+        }
+
+        # Ajouter les citations si RAG
+        if citations:
+            result["citations"] = citations
+
+        results.append(result)
 
     return results
 
@@ -215,10 +271,11 @@ def print_summary(results: list[dict]):
         console.print(f"  {check}: {passed}/{len(results)} ({pct:.0f}%)")
 
 
-def save_results(results: list[dict], config: dict, output_path: Path):
+def save_results(results: list[dict], config: dict, output_path: Path, use_rag: bool = False):
     """Sauvegarde les résultats avec métadonnées pour reproductibilité."""
     output_data = {
         "timestamp": datetime.now().isoformat(),
+        "mode": "rag" if use_rag else "baseline",
         "model": config["model"],
         "inference_params": config["inference"],
         "llama_cpp_rev": "b4823",
@@ -233,19 +290,111 @@ def save_results(results: list[dict], config: dict, output_path: Path):
     console.print(f"\n[green]Résultats: {output_path}[/green]")
 
 
+def get_scores_by_category(results: list[dict]) -> dict[str, float]:
+    """Extrait les scores moyens par catégorie."""
+    categories = {}
+    for r in results:
+        cat = r["category"]
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(r["evaluation"]["scores"].get("auto_composite", 0))
+
+    return {cat: sum(scores) / len(scores) for cat, scores in categories.items()}
+
+
+def print_comparison_table(baseline_results: list[dict], rag_results: list[dict]):
+    """Affiche un tableau comparatif baseline vs RAG par catégorie."""
+    baseline_scores = get_scores_by_category(baseline_results)
+    rag_scores = get_scores_by_category(rag_results)
+
+    all_categories = sorted(set(baseline_scores.keys()) | set(rag_scores.keys()))
+
+    table = Table(title="Comparaison Baseline vs RAG")
+    table.add_column("Catégorie", style="cyan")
+    table.add_column("Baseline", justify="right")
+    table.add_column("RAG", justify="right")
+    table.add_column("Δ", justify="right")
+
+    total_baseline = []
+    total_rag = []
+
+    for cat in all_categories:
+        b_score = baseline_scores.get(cat, 0)
+        r_score = rag_scores.get(cat, 0)
+        delta = r_score - b_score
+        delta_pct = (delta / b_score * 100) if b_score > 0 else 0
+
+        total_baseline.append(b_score)
+        total_rag.append(r_score)
+
+        # Couleur du delta
+        if delta > 0.1:
+            delta_str = f"[green]+{delta_pct:.0f}%[/green]"
+        elif delta < -0.1:
+            delta_str = f"[red]{delta_pct:.0f}%[/red]"
+        else:
+            delta_str = "[dim]~0%[/dim]"
+
+        table.add_row(cat, f"{b_score:.2f}/5", f"{r_score:.2f}/5", delta_str)
+
+    # Total
+    avg_baseline = sum(total_baseline) / len(total_baseline) if total_baseline else 0
+    avg_rag = sum(total_rag) / len(total_rag) if total_rag else 0
+    total_delta = avg_rag - avg_baseline
+    total_delta_pct = (total_delta / avg_baseline * 100) if avg_baseline > 0 else 0
+
+    if total_delta > 0:
+        total_delta_str = f"[bold green]+{total_delta_pct:.0f}%[/bold green]"
+    elif total_delta < 0:
+        total_delta_str = f"[bold red]{total_delta_pct:.0f}%[/bold red]"
+    else:
+        total_delta_str = "[bold]~0%[/bold]"
+
+    table.add_row(
+        "[bold]TOTAL[/bold]",
+        f"[bold]{avg_baseline:.2f}/5[/bold]",
+        f"[bold]{avg_rag:.2f}/5[/bold]",
+        total_delta_str,
+        style="bold",
+    )
+
+    console.print(table)
+
+
+def run_ab_comparison(prompts: list[dict], config: dict) -> tuple[list[dict], list[dict]]:
+    """Exécute une comparaison A/B baseline vs RAG."""
+    # Vérifier si RAG est disponible
+    from app.rag import check_rag_available
+
+    available, error_msg = check_rag_available()
+    if not available:
+        console.print(f"[red]RAG non disponible: {error_msg}[/red]")
+        sys.exit(1)
+
+    # Baseline
+    console.print("[bold yellow]Phase 1: Baseline[/bold yellow]")
+    baseline_results = run_evaluation(prompts, config, use_rag=False)
+
+    console.print()
+
+    # RAG
+    console.print("[bold green]Phase 2: RAG[/bold green]")
+    rag_results = run_evaluation(prompts, config, use_rag=True)
+
+    return baseline_results, rag_results
+
+
 def main():
     """Point d'entrée."""
     parser = argparse.ArgumentParser(description="Évaluation RustSensei")
     parser.add_argument("--limit", type=int, default=0, help="Limiter le nombre de prompts")
     parser.add_argument("--output", type=str, default=None, help="Fichier de sortie")
+    parser.add_argument("--rag", action="store_true", help="Activer le mode RAG")
+    parser.add_argument("--compare", action="store_true", help="Comparaison A/B baseline vs RAG")
     args = parser.parse_args()
-
-    console.print("[bold blue]Évaluation RustSensei[/bold blue]\n")
 
     # Charger config
     config = load_config()
-    console.print(f"Modèle: {config['model']['name']}")
-    console.print(f"llama-cli: {config['paths']['llama_cli']}\n")
 
     # Charger prompts et rubric
     prompts_file = EVAL_DIR / "prompts_fr.jsonl"
@@ -261,18 +410,43 @@ def main():
     if args.limit > 0:
         prompts = prompts[:args.limit]
 
+    # Mode comparaison A/B
+    if args.compare:
+        console.print("[bold blue]Évaluation A/B : Baseline vs RAG[/bold blue]\n")
+        console.print(f"Modèle: {config['model']['name']}")
+        console.print(f"Prompts: {len(prompts)}\n")
+
+        baseline_results, rag_results = run_ab_comparison(prompts, config)
+
+        console.print("\n")
+        print_comparison_table(baseline_results, rag_results)
+
+        # Sauvegarder les deux résultats
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_results(baseline_results, config, REPORTS_DIR / f"eval_baseline_{timestamp}.json", use_rag=False)
+        save_results(rag_results, config, REPORTS_DIR / f"eval_rag_{timestamp}.json", use_rag=True)
+        return
+
+    # Mode simple (baseline ou RAG)
+    mode_str = "[green]RAG[/green]" if args.rag else "[yellow]Baseline[/yellow]"
+    console.print(f"[bold blue]Évaluation RustSensei[/bold blue] ({mode_str})\n")
+
+    console.print(f"Modèle: {config['model']['name']}")
+    console.print(f"llama-cli: {config['paths']['llama_cli']}\n")
+
     console.print(f"Prompts: {len(prompts)}")
     console.print(f"Critères: {len(rubric['criteria'])}\n")
 
     # Évaluer
-    results = run_evaluation(prompts, config)
+    results = run_evaluation(prompts, config, use_rag=args.rag)
 
     # Résumé et sauvegarde
     print_summary(results)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    output_file = Path(args.output) if args.output else REPORTS_DIR / f"eval_{timestamp}.json"
-    save_results(results, config, output_file)
+    mode_suffix = "_rag" if args.rag else "_baseline"
+    output_file = Path(args.output) if args.output else REPORTS_DIR / f"eval{mode_suffix}_{timestamp}.json"
+    save_results(results, config, output_file, use_rag=args.rag)
 
 
 if __name__ == "__main__":

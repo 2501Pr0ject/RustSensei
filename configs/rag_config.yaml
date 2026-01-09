@@ -4,9 +4,6 @@
 # Embedding model
 embeddings:
   model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-  # Alternatives :
-  # - "intfloat/multilingual-e5-small"  # Meilleure qualité, plus lent
-  # - "BAAI/bge-m3"                     # Très bon multilingue
   dimension: 384
   normalize: true
   batch_size: 32
@@ -15,90 +12,51 @@ embeddings:
 # Index FAISS
 index:
   type: "IndexFlatIP"  # Inner Product (avec normalisation = cosine similarity)
-  # Alternatives pour gros corpus :
-  # - "IndexIVFFlat" avec nlist: 100
-  # - "IndexHNSWFlat" avec M: 32
   path: "rag/index/rustsensei.faiss"
   metadata_path: "rag/index/metadata.pkl"
 
 # Chunking des documents
 chunking:
-  method: "recursive"
-  chunk_size: 512        # Tokens
-  chunk_overlap: 50      # Tokens de chevauchement
-  separators:
-    - "\n## "            # Headers markdown
-    - "\n### "
-    - "\n\n"             # Paragraphes
-    - "\n"               # Lignes
-    - ". "               # Phrases
+  method: "markdown_sections"  # Chunking par sections markdown
+  min_tokens: 100              # Merge si < min_tokens
+  max_tokens: 1000             # Split si > max_tokens
+  target_tokens: 500           # Taille cible
+  include_code_blocks: true    # Inclure les blocs de code dans les chunks
 
-# Sources de documents
+# Sources de documents (M2 v0)
 sources:
-  - name: "rust_book_fr"
+  - name: "Rust Book"
+    id: "book"
     type: "markdown"
-    path: "rag/docs/rust_book_fr/"
+    path: "rag/docs/book/src"
     enabled: true
-    priority: 1
 
-  - name: "rust_by_example"
+  - name: "Rust by Example"
+    id: "rbe"
     type: "markdown"
-    path: "rag/docs/rust_by_example/"
+    path: "rag/docs/rbe/src"
     enabled: true
-    priority: 2
 
-  - name: "std_lib_docs"
-    type: "html"
-    path: "rag/docs/std_docs/"
-    enabled: false  # À activer après scraping
-    priority: 3
-
-  - name: "custom_qa"
-    type: "jsonl"
-    path: "rag/docs/qa_pairs.jsonl"
-    enabled: false  # À créer
-    priority: 1
+  - name: "Rust Reference"
+    id: "reference"
+    type: "markdown"
+    path: "rag/docs/reference/src"
+    enabled: true
 
 # Retrieval settings
 retrieval:
   top_k: 5               # Nombre de chunks à récupérer
-  score_threshold: 0.5   # Score minimum (cosine similarity)
-  rerank: false          # Activer le re-ranking (plus lent)
-  rerank_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+  score_threshold: 0.3   # Score minimum (cosine similarity)
+  max_citations: 4       # Citations max à afficher
 
 # Augmentation du prompt
 augmentation:
   template: |
-    Contexte pertinent de la documentation Rust :
-    ---
+    Contexte de la documentation Rust officielle :
     {context}
+
     ---
+    Question : {query}
 
-    En te basant sur ce contexte et tes connaissances, réponds à la question suivante :
-    {query}
-
-  max_context_tokens: 1500  # Limite pour le contexte injecté
-  include_source: true      # Inclure la source des chunks
-  format: "markdown"
-
-# Cache
-cache:
-  enabled: true
-  type: "file"
-  path: "rag/cache/"
-  ttl: 86400  # 24 heures
-
-# Metadata filters
-filters:
-  # Permet de filtrer par type de document
-  supported_fields:
-    - "source"
-    - "category"
-    - "difficulty"
-    - "chapter"
-
-# Logging
-logging:
-  log_queries: true
-  log_retrievals: true
-  log_path: "logs/rag.log"
+  max_context_tokens: 1500
+  citation_format: "[{source} — {heading}]"

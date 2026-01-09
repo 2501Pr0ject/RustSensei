@@ -17,6 +17,9 @@ console = Console()
 PROJECT_ROOT = Path(__file__).parent.parent
 CONFIGS_DIR = PROJECT_ROOT / "configs"
 
+# RAG retriever (lazy loaded)
+_rag_retriever = None
+
 
 def load_config() -> dict:
     """Charge la configuration du modèle."""
@@ -43,10 +46,28 @@ def check_prerequisites(config: dict) -> bool:
     return True
 
 
-def build_prompt(user_message: str, config: dict) -> str:
+def get_rag_retriever():
+    """Retourne le retriever RAG (lazy loading)."""
+    global _rag_retriever
+    if _rag_retriever is None:
+        from .rag import RAGRetriever
+        _rag_retriever = RAGRetriever()
+    return _rag_retriever
+
+
+def build_prompt(user_message: str, config: dict, context: str = None) -> str:
     """Construit le prompt avec le template ChatML."""
     system = config["prompt"]["system"]
     template = config["prompt"]["template"]
+
+    # Ajouter le contexte RAG si présent
+    if context:
+        augmented_message = (
+            f"Contexte de la documentation Rust officielle :\n{context}\n\n"
+            f"---\nQuestion : {user_message}"
+        )
+        return template.format(system=system, user=augmented_message)
+
     return template.format(system=system, user=user_message)
 
 
@@ -100,8 +121,24 @@ def chat_loop(use_rag: bool = False):
         )
     )
 
+    retriever = None
     if use_rag:
-        console.print("[dim]Mode RAG activé (non implémenté)[/dim]\n")
+        from .rag import check_rag_available
+
+        available, error_msg = check_rag_available()
+        if not available:
+            console.print(f"[yellow]RAG non disponible: {error_msg}[/yellow]")
+            console.print("[dim]Fallback vers mode baseline...[/dim]\n")
+            use_rag = False
+        else:
+            try:
+                console.print("[dim]Chargement index RAG...[/dim]")
+                retriever = get_rag_retriever()
+                console.print("[green]Mode RAG activé[/green]\n")
+            except ImportError as e:
+                console.print(f"[yellow]Dépendances RAG manquantes: {e}[/yellow]")
+                console.print("[dim]Fallback vers mode baseline...[/dim]\n")
+                use_rag = False
 
     console.print(f"[dim]Modèle: {config['model']['name']}[/dim]\n")
 
@@ -116,14 +153,30 @@ def chat_loop(use_rag: bool = False):
             if not user_input.strip():
                 continue
 
+            # RAG: récupérer le contexte
+            context = None
+            citations = []
+            if retriever:
+                console.print("[dim]Recherche dans la documentation...[/dim]")
+                chunks = retriever.retrieve(user_input)
+                if chunks:
+                    context = retriever.format_context(chunks)
+                    citations = retriever.get_citations(chunks)
+
             # Construire le prompt et générer
             console.print("[dim]Génération...[/dim]")
-            full_prompt = build_prompt(user_input, config)
+            full_prompt = build_prompt(user_input, config, context=context)
             response = call_llama_cli(full_prompt, config)
 
             # Afficher la réponse
             console.print("\n[bold blue]RustSensei[/bold blue]:")
             console.print(Markdown(response))
+
+            # Afficher les citations
+            if citations:
+                console.print("\n[dim]Sources :[/dim]")
+                for citation in citations:
+                    console.print(f"  [cyan]{citation}[/cyan]")
 
         except KeyboardInterrupt:
             console.print("\n[dim]À bientôt ![/dim]")

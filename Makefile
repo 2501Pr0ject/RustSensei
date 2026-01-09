@@ -155,23 +155,59 @@ chat-rag: ## Lance le chat avec RAG
 # Évaluation
 # ============================================================================
 
-eval: ## Évalue le modèle sur tous les prompts
+eval: ## Évalue le modèle sur tous les prompts (baseline)
 	@if [ ! -f "$(LLAMA_CLI)" ] || [ ! -f "$(MODEL_PATH)" ]; then \
 		echo "$(RED)Lancez d'abord: make install-all$(NC)"; \
 		exit 1; \
 	fi
-	@echo "$(GREEN)Évaluation...$(NC)"
+	@echo "$(GREEN)Évaluation baseline...$(NC)"
 	$(PYTHON) scripts/evaluate.py
 
-eval-smoke: ## Test rapide (5 prompts)
-	@echo "$(GREEN)Smoke test...$(NC)"
+eval-rag: ## Évalue le modèle avec RAG
+	@if [ ! -f "$(LLAMA_CLI)" ] || [ ! -f "$(MODEL_PATH)" ]; then \
+		echo "$(RED)Lancez d'abord: make install-all$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "rag/index/rustsensei.faiss" ]; then \
+		echo "$(RED)Index RAG non trouvé. Lancez: make build-index$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Évaluation RAG...$(NC)"
+	$(PYTHON) scripts/evaluate.py --rag
+
+eval-smoke: ## Test rapide (5 prompts, baseline)
+	@echo "$(GREEN)Smoke test baseline...$(NC)"
 	$(PYTHON) scripts/evaluate.py --limit 5
+
+eval-smoke-rag: ## Test rapide RAG (5 prompts)
+	@echo "$(GREEN)Smoke test RAG...$(NC)"
+	$(PYTHON) scripts/evaluate.py --limit 5 --rag
+
+eval-compare: ## Comparaison A/B baseline vs RAG (10 prompts)
+	@if [ ! -f "$(LLAMA_CLI)" ] || [ ! -f "$(MODEL_PATH)" ]; then \
+		echo "$(RED)Lancez d'abord: make install-all$(NC)"; \
+		exit 1; \
+	fi
+	@if [ ! -f "rag/index/rustsensei.faiss" ]; then \
+		echo "$(RED)Index RAG non trouvé. Lancez: make build-index$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)Comparaison A/B baseline vs RAG...$(NC)"
+	$(PYTHON) scripts/evaluate.py --compare --limit 10
 
 # ============================================================================
 # RAG
 # ============================================================================
 
-build-index: ## Construit l'index RAG
+download-docs: ## Télécharge les sources de documentation pour le RAG
+	@echo "$(GREEN)Téléchargement des docs Rust...$(NC)"
+	$(PYTHON) scripts/download_docs.py
+
+build-index: ## Construit l'index RAG (télécharge les docs si absent)
+	@if [ ! -d "rag/docs/book" ]; then \
+		echo "$(YELLOW)Docs non trouvées, téléchargement...$(NC)"; \
+		$(PYTHON) scripts/download_docs.py; \
+	fi
 	@echo "$(GREEN)Construction index RAG...$(NC)"
 	$(PYTHON) scripts/build_index.py
 
