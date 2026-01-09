@@ -1,0 +1,119 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# uv
+.uv/
+uv.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Linting
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Models (large files)
+models/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+*.ckpt
+
+# Vendor (llama.cpp compiled locally)
+vendor/
+
+# RAG (docs sous licence + index régénérable)
+rag/docs/*
+!rag/docs/.gitkeep
+!rag/docs/README.md
+rag/index/*
+!rag/index/.gitkeep
+
+# Data (optionnel, à ajuster selon besoins)
+data/raw/
+data/processed/*.jsonl
+
+# Logs & outputs
+logs/
+*.log
+outputs/
+runs/
+mlruns/
+wandb/
+
+# Environment
+.env
+.env.local
+*.env
+
+# Secrets
+secrets/
+credentials/
+*.key
+*.pem
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Private documentation (never commit)
+CLAUDE.md
+DECISIONS.md
+CHECKLIST.md
+*.private.md
+docs/private/

@@ -1,0 +1,129 @@
+{
+  "timestamp": "2026-01-09T13:41:13.762411",
+  "model": {
+    "name": "Qwen2.5-Coder-1.5B-Instruct",
+    "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M"
+  },
+  "inference_params": {
+    "n_ctx": 4096,
+    "n_predict": 1024,
+    "threads": 8,
+    "n_gpu_layers": 99,
+    "temp": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "llama_cpp_rev": "b4823",
+  "total_prompts": 5,
+  "results": [
+    {
+      "prompt_id": 1,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment déclarer une variable mutable en Rust ?",
+      "response": "[TIMEOUT]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 0.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 1,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 2,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quelle est la différence entre let et const en Rust ?",
+      "response": "[TIMEOUT]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 0.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 1,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 3,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment afficher du texte dans la console en Rust ?",
+      "response": "[TIMEOUT]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 0.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 1,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 4,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quels sont les types primitifs scalaires en Rust ?",
+      "response": "[TIMEOUT]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 0.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 1,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 5,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?",
+      "response": "[TIMEOUT]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 0.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.0,
+          "response_length": false
+        },
+        "word_count": 1,
+        "sections_found": 0
+      }
+    }
+  ]
+}

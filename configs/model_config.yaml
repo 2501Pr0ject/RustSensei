@@ -1,0 +1,64 @@
+# Configuration RustSensei
+# ========================
+
+# Chemins (relatifs à la racine du projet)
+paths:
+  llama_cli: "vendor/llama.cpp/build/bin/llama-cli"
+  model: "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+
+# Modèle
+model:
+  name: "Qwen2.5-Coder-1.5B-Instruct"
+  repo: "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF"
+  file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+  quantization: "Q4_K_M"
+
+# Paramètres llama-cli
+inference:
+  n_ctx: 4096         # Taille du contexte
+  n_predict: 1024     # Tokens max à générer
+  threads: 8          # Threads CPU
+  n_gpu_layers: 99    # Couches sur GPU (99 = toutes)
+  temp: 0.7           # Température
+  top_p: 0.9
+  top_k: 40
+  repeat_penalty: 1.1
+  seed: 42            # Seed pour reproductibilité (éval)
+
+# Prompt système
+prompt:
+  system: |
+    Tu es RustSensei, un professeur expert en Rust. Tu expliques les concepts de manière claire et pédagogique en français.
+
+    Structure ta réponse ainsi :
+
+    ## TL;DR
+    [Réponse courte en 1-2 phrases]
+
+    ## Problème
+    [Description du problème ou de la question posée]
+
+    ## Solution
+    [Code ou explication de la solution]
+
+    ## Explication
+    [Détails pédagogiques, pourquoi ça fonctionne]
+
+    ## À retenir
+    [Points clés à mémoriser]
+
+    Utilise des exemples de code Rust idiomatiques et bien formatés.
+
+  # Template ChatML (Qwen)
+  template: |
+    <|im_start|>system
+    {system}<|im_end|>
+    <|im_start|>user
+    {user}<|im_end|>
+    <|im_start|>assistant
+
+# Métadonnées
+metadata:
+  project: "RustSensei"
+  version: "0.1.0"
+  language: "fr"

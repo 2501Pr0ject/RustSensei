@@ -1,0 +1,136 @@
+{
+  "version": "1.0",
+  "description": "Grille d'évaluation pour RustSensei",
+  "scoring": {
+    "scale": "1-5",
+    "passing_threshold": 3.5
+  },
+  "criteria": [
+    {
+      "id": "accuracy",
+      "name": "Exactitude technique",
+      "weight": 0.30,
+      "description": "L'information fournie est techniquement correcte",
+      "levels": {
+        "1": "Erreurs majeures qui induiraient l'apprenant en erreur",
+        "2": "Plusieurs inexactitudes ou imprécisions importantes",
+        "3": "Globalement correct avec quelques imprécisions mineures",
+        "4": "Techniquement exact avec des détails précis",
+        "5": "Parfaitement exact, incluant les cas limites et nuances"
+      }
+    },
+    {
+      "id": "completeness",
+      "name": "Complétude",
+      "weight": 0.20,
+      "description": "La réponse couvre tous les aspects importants de la question",
+      "levels": {
+        "1": "Réponse très partielle, manque l'essentiel",
+        "2": "Couvre les bases mais omet des aspects importants",
+        "3": "Couvre les points principaux de manière satisfaisante",
+        "4": "Réponse complète avec contexte utile",
+        "5": "Exhaustive, anticipe les questions de suivi"
+      }
+    },
+    {
+      "id": "pedagogy",
+      "name": "Qualité pédagogique",
+      "weight": 0.25,
+      "description": "L'explication est claire et adaptée à l'apprentissage",
+      "levels": {
+        "1": "Confus, jargon inexpliqué, difficile à suivre",
+        "2": "Structure faible, explications insuffisantes",
+        "3": "Clair et compréhensible pour le niveau ciblé",
+        "4": "Excellent flow pédagogique avec analogies utiles",
+        "5": "Exceptionnel : progression logique, exemples pertinents, mémorisation facilitée"
+      }
+    },
+    {
+      "id": "code_quality",
+      "name": "Qualité du code",
+      "weight": 0.15,
+      "description": "Les exemples de code sont corrects, idiomatiques et lisibles",
+      "levels": {
+        "1": "Code incorrect ou qui ne compile pas",
+        "2": "Code fonctionnel mais non idiomatique ou mal formaté",
+        "3": "Code correct et lisible, suit les conventions",
+        "4": "Code idiomatique Rust avec bonnes pratiques",
+        "5": "Code exemplaire, commenté si nécessaire, patterns optimaux"
+      },
+      "na_allowed": true,
+      "na_reason": "Si la question ne nécessite pas de code"
+    },
+    {
+      "id": "format",
+      "name": "Respect du format",
+      "weight": 0.10,
+      "description": "La réponse suit la structure attendue (TL;DR, Problème, Solution, etc.)",
+      "levels": {
+        "1": "Format complètement ignoré",
+        "2": "Structure partielle ou désorganisée",
+        "3": "Format respecté dans les grandes lignes",
+        "4": "Format bien respecté avec sections claires",
+        "5": "Format parfait, utilisation optimale de chaque section"
+      }
+    }
+  ],
+  "automatic_checks": [
+    {
+      "id": "language",
+      "name": "Langue française",
+      "type": "boolean",
+      "description": "La réponse est en français"
+    },
+    {
+      "id": "code_blocks",
+      "name": "Blocs de code formatés",
+      "type": "boolean",
+      "description": "Le code est dans des blocs markdown avec syntaxe Rust"
+    },
+    {
+      "id": "expected_topics",
+      "name": "Sujets attendus couverts",
+      "type": "percentage",
+      "description": "Pourcentage des topics attendus mentionnés dans la réponse"
+    },
+    {
+      "id": "response_length",
+      "name": "Longueur de réponse",
+      "type": "range",
+      "min": 100,
+      "max": 2000,
+      "unit": "tokens",
+      "description": "La réponse est ni trop courte ni trop longue"
+    }
+  ],
+  "category_weights": {
+    "basics": 1.0,
+    "ownership": 1.2,
+    "borrowing": 1.2,
+    "lifetimes": 1.3,
+    "structs": 1.0,
+    "enums": 1.0,
+    "pattern_matching": 1.0,
+    "traits": 1.1,
+    "generics": 1.1,
+    "collections": 1.0,
+    "error_handling": 1.1,
+    "iterators": 1.0,
+    "closures": 1.1,
+    "modules": 0.9,
+    "cargo": 0.9,
+    "testing": 1.0,
+    "smart_pointers": 1.2,
+    "concurrency": 1.3,
+    "async": 1.3
+  },
+  "difficulty_weights": {
+    "debutant": 1.0,
+    "intermediaire": 1.1,
+    "avance": 1.2
+  },
+  "aggregation": {
+    "method": "weighted_average",
+    "final_score_formula": "sum(criterion_score * criterion_weight * category_weight * difficulty_weight) / sum(weights)"
+  }
+}

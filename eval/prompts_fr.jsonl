@@ -1,0 +1,50 @@
+{"id": 1, "category": "basics", "difficulty": "debutant", "prompt": "Comment déclarer une variable mutable en Rust ?", "expected_topics": ["let", "mut", "immutabilité par défaut"]}
+{"id": 2, "category": "basics", "difficulty": "debutant", "prompt": "Quelle est la différence entre let et const en Rust ?", "expected_topics": ["let", "const", "compile-time", "shadowing"]}
+{"id": 3, "category": "basics", "difficulty": "debutant", "prompt": "Comment afficher du texte dans la console en Rust ?", "expected_topics": ["println!", "macro", "formatage"]}
+{"id": 4, "category": "basics", "difficulty": "debutant", "prompt": "Quels sont les types primitifs scalaires en Rust ?", "expected_topics": ["i32", "f64", "bool", "char"]}
+{"id": 5, "category": "basics", "difficulty": "debutant", "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?", "expected_topics": ["fn", "->", "return", "expression"]}
+{"id": 6, "category": "ownership", "difficulty": "intermediaire", "prompt": "Explique-moi le concept d'ownership en Rust avec un exemple simple.", "expected_topics": ["propriété", "move", "drop", "scope"]}
+{"id": 7, "category": "ownership", "difficulty": "intermediaire", "prompt": "Pourquoi ce code ne compile pas : let s1 = String::from(\"hello\"); let s2 = s1; println!(\"{}\", s1);", "expected_topics": ["move", "invalidation", "String vs &str"]}
+{"id": 8, "category": "ownership", "difficulty": "intermediaire", "prompt": "Comment passer une String à une fonction sans perdre la propriété ?", "expected_topics": ["référence", "&", "borrowing", "clone"]}
+{"id": 9, "category": "borrowing", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre &T et &mut T ?", "expected_topics": ["référence immuable", "référence mutable", "règles du borrow checker"]}
+{"id": 10, "category": "borrowing", "difficulty": "intermediaire", "prompt": "Pourquoi ne peut-on pas avoir plusieurs références mutables en même temps ?", "expected_topics": ["data race", "sécurité mémoire", "borrow checker"]}
+{"id": 11, "category": "borrowing", "difficulty": "avance", "prompt": "Explique l'erreur 'cannot borrow as mutable because it is also borrowed as immutable'.", "expected_topics": ["règles d'emprunt", "conflit", "scope des références"]}
+{"id": 12, "category": "lifetimes", "difficulty": "avance", "prompt": "À quoi servent les lifetimes en Rust ?", "expected_topics": ["durée de vie", "références valides", "dangling references"]}
+{"id": 13, "category": "lifetimes", "difficulty": "avance", "prompt": "Comment lire cette signature : fn longest<'a>(x: &'a str, y: &'a str) -> &'a str ?", "expected_topics": ["paramètre de lifetime", "même durée de vie", "retour de référence"]}
+{"id": 14, "category": "lifetimes", "difficulty": "avance", "prompt": "Qu'est-ce que le lifetime elision en Rust ?", "expected_topics": ["règles implicites", "simplification", "cas courants"]}
+{"id": 15, "category": "structs", "difficulty": "debutant", "prompt": "Comment créer une structure (struct) en Rust ?", "expected_topics": ["struct", "champs", "instanciation"]}
+{"id": 16, "category": "structs", "difficulty": "intermediaire", "prompt": "Comment implémenter des méthodes sur une struct ?", "expected_topics": ["impl", "self", "&self", "méthodes associées"]}
+{"id": 17, "category": "structs", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre une méthode et une fonction associée ?", "expected_topics": ["self", "constructeur", "::new()"]}
+{"id": 18, "category": "enums", "difficulty": "debutant", "prompt": "Comment créer une énumération en Rust ?", "expected_topics": ["enum", "variants", "match"]}
+{"id": 19, "category": "enums", "difficulty": "intermediaire", "prompt": "Explique Option<T> et son utilisation.", "expected_topics": ["Some", "None", "null safety", "unwrap"]}
+{"id": 20, "category": "enums", "difficulty": "intermediaire", "prompt": "Explique Result<T, E> et la gestion d'erreurs.", "expected_topics": ["Ok", "Err", "?", "propagation"]}
+{"id": 21, "category": "pattern_matching", "difficulty": "debutant", "prompt": "Comment fonctionne le pattern matching avec match ?", "expected_topics": ["match", "exhaustivité", "patterns"]}
+{"id": 22, "category": "pattern_matching", "difficulty": "intermediaire", "prompt": "Quand utiliser if let au lieu de match ?", "expected_topics": ["if let", "un seul cas", "sucre syntaxique"]}
+{"id": 23, "category": "pattern_matching", "difficulty": "intermediaire", "prompt": "Comment déstructurer un tuple ou une struct dans un match ?", "expected_topics": ["déstructuration", "binding", "_"]}
+{"id": 24, "category": "traits", "difficulty": "intermediaire", "prompt": "Qu'est-ce qu'un trait en Rust et à quoi ça sert ?", "expected_topics": ["interface", "comportement partagé", "impl Trait for"]}
+{"id": 25, "category": "traits", "difficulty": "intermediaire", "prompt": "Comment implémenter le trait Display pour une struct personnalisée ?", "expected_topics": ["std::fmt::Display", "impl", "write!", "Formatter"]}
+{"id": 26, "category": "traits", "difficulty": "avance", "prompt": "Quelle est la différence entre impl Trait et dyn Trait ?", "expected_topics": ["monomorphisation", "dispatch statique", "dispatch dynamique", "trait object"]}
+{"id": 27, "category": "traits", "difficulty": "avance", "prompt": "Explique les trait bounds et la syntaxe where.", "expected_topics": ["contraintes", "généricité", "where T:"]}
+{"id": 28, "category": "generics", "difficulty": "intermediaire", "prompt": "Comment créer une fonction générique en Rust ?", "expected_topics": ["<T>", "paramètre de type", "monomorphisation"]}
+{"id": 29, "category": "generics", "difficulty": "intermediaire", "prompt": "Comment contraindre un type générique à implémenter un trait ?", "expected_topics": ["trait bound", "T: Clone", "where"]}
+{"id": 30, "category": "collections", "difficulty": "debutant", "prompt": "Comment créer et utiliser un Vec en Rust ?", "expected_topics": ["Vec::new()", "vec!", "push", "indexation"]}
+{"id": 31, "category": "collections", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre String et &str ?", "expected_topics": ["owned vs borrowed", "heap", "stack", "slice"]}
+{"id": 32, "category": "collections", "difficulty": "intermediaire", "prompt": "Comment utiliser une HashMap en Rust ?", "expected_topics": ["HashMap", "insert", "get", "entry API"]}
+{"id": 33, "category": "error_handling", "difficulty": "debutant", "prompt": "Comment gérer une erreur avec unwrap et expect ?", "expected_topics": ["panic", "message d'erreur", "debug"]}
+{"id": 34, "category": "error_handling", "difficulty": "intermediaire", "prompt": "Comment propager les erreurs avec l'opérateur ? ?", "expected_topics": ["?", "From trait", "Result", "early return"]}
+{"id": 35, "category": "error_handling", "difficulty": "avance", "prompt": "Comment créer un type d'erreur personnalisé ?", "expected_topics": ["struct Error", "impl std::error::Error", "thiserror"]}
+{"id": 36, "category": "iterators", "difficulty": "intermediaire", "prompt": "Comment utiliser les itérateurs en Rust ?", "expected_topics": ["iter()", "into_iter()", "iter_mut()", "lazy"]}
+{"id": 37, "category": "iterators", "difficulty": "intermediaire", "prompt": "Explique map, filter et collect sur les itérateurs.", "expected_topics": ["transformation", "filtrage", "collecte", "chaînage"]}
+{"id": 38, "category": "iterators", "difficulty": "avance", "prompt": "Quelle est la différence entre iter() et into_iter() ?", "expected_topics": ["référence", "ownership", "consommation"]}
+{"id": 39, "category": "closures", "difficulty": "intermediaire", "prompt": "Comment créer une closure en Rust ?", "expected_topics": ["||", "capture", "Fn traits"]}
+{"id": 40, "category": "closures", "difficulty": "avance", "prompt": "Explique la différence entre Fn, FnMut et FnOnce.", "expected_topics": ["capture par référence", "capture mutable", "move"]}
+{"id": 41, "category": "modules", "difficulty": "debutant", "prompt": "Comment organiser le code en modules en Rust ?", "expected_topics": ["mod", "pub", "use", "fichiers"]}
+{"id": 42, "category": "modules", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre use et pub use ?", "expected_topics": ["re-export", "visibilité", "API publique"]}
+{"id": 43, "category": "cargo", "difficulty": "debutant", "prompt": "Qu'est-ce que Cargo et comment créer un nouveau projet ?", "expected_topics": ["gestionnaire de paquets", "cargo new", "Cargo.toml"]}
+{"id": 44, "category": "cargo", "difficulty": "intermediaire", "prompt": "Comment ajouter une dépendance externe avec Cargo ?", "expected_topics": ["Cargo.toml", "crates.io", "features"]}
+{"id": 45, "category": "testing", "difficulty": "intermediaire", "prompt": "Comment écrire des tests unitaires en Rust ?", "expected_topics": ["#[test]", "assert!", "assert_eq!", "cargo test"]}
+{"id": 46, "category": "smart_pointers", "difficulty": "avance", "prompt": "Qu'est-ce que Box<T> et quand l'utiliser ?", "expected_topics": ["heap allocation", "taille inconnue", "récursivité"]}
+{"id": 47, "category": "smart_pointers", "difficulty": "avance", "prompt": "Explique Rc<T> et Arc<T> pour le partage de données.", "expected_topics": ["reference counting", "shared ownership", "thread safety"]}
+{"id": 48, "category": "concurrency", "difficulty": "avance", "prompt": "Comment créer un thread en Rust ?", "expected_topics": ["std::thread::spawn", "move", "join"]}
+{"id": 49, "category": "concurrency", "difficulty": "avance", "prompt": "Qu'est-ce que Send et Sync en Rust ?", "expected_topics": ["marker traits", "thread safety", "auto traits"]}
+{"id": 50, "category": "async", "difficulty": "avance", "prompt": "Comment fonctionne async/await en Rust ?", "expected_topics": ["Future", "runtime", "tokio", ".await"]}

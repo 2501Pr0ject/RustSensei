@@ -1,0 +1,104 @@
+# Configuration RAG pour RustSensei
+# ==================================
+
+# Embedding model
+embeddings:
+  model: "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+  # Alternatives :
+  # - "intfloat/multilingual-e5-small"  # Meilleure qualité, plus lent
+  # - "BAAI/bge-m3"                     # Très bon multilingue
+  dimension: 384
+  normalize: true
+  batch_size: 32
+  device: "mps"  # Apple Silicon
+
+# Index FAISS
+index:
+  type: "IndexFlatIP"  # Inner Product (avec normalisation = cosine similarity)
+  # Alternatives pour gros corpus :
+  # - "IndexIVFFlat" avec nlist: 100
+  # - "IndexHNSWFlat" avec M: 32
+  path: "rag/index/rustsensei.faiss"
+  metadata_path: "rag/index/metadata.pkl"
+
+# Chunking des documents
+chunking:
+  method: "recursive"
+  chunk_size: 512        # Tokens
+  chunk_overlap: 50      # Tokens de chevauchement
+  separators:
+    - "\n## "            # Headers markdown
+    - "\n### "
+    - "\n\n"             # Paragraphes
+    - "\n"               # Lignes
+    - ". "               # Phrases
+
+# Sources de documents
+sources:
+  - name: "rust_book_fr"
+    type: "markdown"
+    path: "rag/docs/rust_book_fr/"
+    enabled: true
+    priority: 1
+
+  - name: "rust_by_example"
+    type: "markdown"
+    path: "rag/docs/rust_by_example/"
+    enabled: true
+    priority: 2
+
+  - name: "std_lib_docs"
+    type: "html"
+    path: "rag/docs/std_docs/"
+    enabled: false  # À activer après scraping
+    priority: 3
+
+  - name: "custom_qa"
+    type: "jsonl"
+    path: "rag/docs/qa_pairs.jsonl"
+    enabled: false  # À créer
+    priority: 1
+
+# Retrieval settings
+retrieval:
+  top_k: 5               # Nombre de chunks à récupérer
+  score_threshold: 0.5   # Score minimum (cosine similarity)
+  rerank: false          # Activer le re-ranking (plus lent)
+  rerank_model: "cross-encoder/ms-marco-MiniLM-L-6-v2"
+
+# Augmentation du prompt
+augmentation:
+  template: |
+    Contexte pertinent de la documentation Rust :
+    ---
+    {context}
+    ---
+
+    En te basant sur ce contexte et tes connaissances, réponds à la question suivante :
+    {query}
+
+  max_context_tokens: 1500  # Limite pour le contexte injecté
+  include_source: true      # Inclure la source des chunks
+  format: "markdown"
+
+# Cache
+cache:
+  enabled: true
+  type: "file"
+  path: "rag/cache/"
+  ttl: 86400  # 24 heures
+
+# Metadata filters
+filters:
+  # Permet de filtrer par type de document
+  supported_fields:
+    - "source"
+    - "category"
+    - "difficulty"
+    - "chapter"
+
+# Logging
+logging:
+  log_queries: true
+  log_retrievals: true
+  log_path: "logs/rag.log"
