@@ -42,11 +42,16 @@ RustSenseï/
 git clone https://github.com/votre-username/RustSensei.git
 cd RustSenseï
 
-# Installer les dépendances
-make setup
+# Installation complète (Python + llama.cpp + modèle)
+make install-all
 
-# Télécharger le modèle
-make download-model
+# Ou étape par étape :
+make setup           # Dépendances Python
+make install-llama   # Compiler llama.cpp (Metal/MPS)
+make download-model  # Télécharger le modèle GGUF
+
+# Vérifier l'installation
+make check
 ```
 
 ## Utilisation
@@ -62,7 +67,7 @@ make eval
 ## Roadmap
 
 - [x] **M0** : Structure du projet, prompts d'évaluation
-- [ ] **M1** : Baseline llama.cpp + CLI + éval
+- [x] **M1** : Baseline llama.cpp + CLI + éval (score: 3.00/5)
 - [ ] **M2** : RAG v0 (fiabilité)
 - [ ] **M3** : Dataset v0 (qualité)
 - [ ] **M4** : Fine-tune LoRA
