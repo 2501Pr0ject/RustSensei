@@ -212,6 +212,18 @@ build-index: ## Construit l'index RAG (télécharge les docs si absent)
 	$(PYTHON) scripts/build_index.py
 
 # ============================================================================
+# Dataset
+# ============================================================================
+
+build-dataset: ## Génère le dataset d'entraînement
+	@echo "$(GREEN)Construction dataset...$(NC)"
+	$(PYTHON) scripts/build_dataset.py
+
+validate-dataset: ## Valide le format du dataset
+	@echo "$(GREEN)Validation dataset...$(NC)"
+	$(PYTHON) scripts/validate_dataset.py
+
+# ============================================================================
 # Qualité
 # ============================================================================
 

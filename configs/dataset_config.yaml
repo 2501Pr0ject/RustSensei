@@ -1,0 +1,87 @@
+# Configuration Dataset pour RustSensei
+# ======================================
+
+# Format de sortie
+format:
+  type: "chat_jsonl"  # Format chat avec messages
+  system_prompt: |
+    Tu es RustSensei, un assistant pédagogique expert en Rust.
+    Tu réponds en français avec des explications claires et des exemples de code.
+    Tu utilises un ton bienveillant et encourageant.
+
+    Structure tes réponses avec ces sections :
+    ## TL;DR
+    ## Problème
+    ## Solution
+    ## Explication
+    ## À retenir
+
+    Inclus toujours des blocs de code ```rust quand pertinent.
+
+# Catégories et distribution
+categories:
+  debug:
+    description: "Correction de bugs et erreurs de compilation"
+    target_ratio: 0.40
+    difficulty_mix:
+      debutant: 0.3
+      intermediaire: 0.5
+      avance: 0.2
+
+  concepts:
+    description: "Explications de concepts Rust"
+    target_ratio: 0.40
+    difficulty_mix:
+      debutant: 0.4
+      intermediaire: 0.4
+      avance: 0.2
+
+  exercises:
+    description: "Exercices guidés avec hints"
+    target_ratio: 0.20
+    difficulty_mix:
+      debutant: 0.5
+      intermediaire: 0.4
+      avance: 0.1
+
+# Topics à couvrir
+topics:
+  - ownership
+  - borrowing
+  - lifetimes
+  - structs
+  - enums
+  - traits
+  - generics
+  - error_handling
+  - pattern_matching
+  - iterators
+  - closures
+  - modules
+  - testing
+  - unsafe
+
+# Qualité
+quality:
+  min_response_tokens: 50
+  max_response_tokens: 800
+  require_code_block: true  # Pour debug et exercises
+  require_french: true
+  banned_phrases:
+    - "en tant qu'assistant"
+    - "je suis un modèle"
+    - "I cannot"
+    - "As an AI"
+
+# Validation
+validation:
+  check_json_format: true
+  check_message_structure: true
+  check_french_ratio: 0.8  # 80% des mots doivent être français
+  check_code_syntax: true  # Vérifie que les blocs rust sont valides
+
+# Paths
+paths:
+  output_dir: "data_samples"
+  sample_file: "dataset_sample.jsonl"
+  full_file: "dataset_full.jsonl"  # Généré mais pas committé
