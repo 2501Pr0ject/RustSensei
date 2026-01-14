@@ -1,58 +1,39 @@
 # RustSensei
 
-Un assistant local pour apprendre le Rust en français.
+Un assistant local pour apprendre le Rust en francais.
 
-## Objectif
-
-RustSensei est un outil pédagogique spécialisé dans l'enseignement du langage Rust. Il fournit des explications claires, corrige les erreurs courantes et guide les apprenants avec des réponses structurées.
-
-**Fonctionne 100% en local, sans connexion internet.**
-
-## Caractéristiques
-
-- **Inférence locale** : llama.cpp (optimisé Apple Silicon)
-- **RAG** : Réponses enrichies avec la documentation Rust officielle
-- **Langue** : Français
-- **Open source** : MIT License
-
-## Structure du projet
-
-```
-RustSenseï/
-├── app/               # CLI et interface utilisateur
-├── scripts/           # Scripts d'évaluation et de traitement
-├── configs/           # Configurations (modèle, RAG)
-├── data/              # Données (raw, processed)
-├── eval/              # Prompts d'évaluation et métriques
-├── rag/               # Documents et index pour le RAG
-├── reports/           # Résultats d'évaluation
-└── tests/             # Tests unitaires
-```
-
-## Prérequis
-
-- Python 3.11+
-- [uv](https://github.com/astral-sh/uv)
-- [llama.cpp](https://github.com/ggerganov/llama.cpp)
-- macOS Apple Silicon (M1/M2) recommandé
-
-## Installation
+## Quick Start (< 2 min)
 
 ```bash
+# 1. Cloner
 git clone https://github.com/2501Pr0ject/RustSensei.git
-cd RustSenseï
+cd RustSensei
 
-# Installation complète (Python + llama.cpp + modèle)
+# 2. Installer (Python + llama.cpp + modele)
 make install-all
 
-# Ou étape par étape :
-make setup           # Dépendances Python
-make install-llama   # Compiler llama.cpp (Metal/MPS)
-make download-model  # Télécharger le modèle GGUF
-
-# Vérifier l'installation
-make check
+# 3. Lancer
+make chat
 ```
+
+**Prerequis**: Python 3.11+, [uv](https://github.com/astral-sh/uv), macOS Apple Silicon recommande
+
+## Fonctionnalites
+
+- **100% local** - Fonctionne sans connexion internet
+- **Inference rapide** - llama.cpp optimise Metal/MPS
+- **RAG** - Reponses enrichies avec la documentation Rust officielle
+- **87% compilation** - Le code genere compile
+- **Francais** - Reponses pedagogiques en francais
+
+## Metriques
+
+| Metrique | Valeur |
+|----------|--------|
+| Score global | 3.07/5 |
+| Langue FR | 95% |
+| Compilation | 87% |
+| RAG boost | +10% |
 
 ## Utilisation
 
@@ -60,23 +41,75 @@ make check
 # Chat interactif
 make chat
 
-# Évaluation
+# Chat avec RAG (documentation Rust)
+make chat-rag
+
+# Evaluation
 make eval
+
+# Verification compilation
+make compile-check
 ```
+
+### Exemple
+
+```
+> Pourquoi ce code ne compile pas ?
+> let s = String::from("hello");
+> let s2 = s;
+> println!("{}", s);
+
+## TL;DR
+La variable s a ete deplacee vers s2, elle n'est plus utilisable.
+
+## Solution
+let s2 = s.clone();  // ou let s2 = &s;
+...
+```
+
+## Structure
+
+```
+RustSensei/
+├── app/           # CLI
+├── scripts/       # Evaluation, training, export
+├── configs/       # Configuration modele et RAG
+├── eval/          # Prompts d'evaluation
+├── rag/           # Index de documentation
+└── reports/       # Resultats
+```
+
+## Documentation
+
+- [MODEL_CARD.md](MODEL_CARD.md) - Specifications du modele
+- [EVALUATION.md](EVALUATION.md) - Systeme d'evaluation
 
 ## Roadmap
 
-- [x] **M0** : Structure du projet, prompts d'evaluation
-- [x] **M1** : Baseline llama.cpp + CLI + eval (score: 3.00/5)
-- [x] **M2** : RAG v0 (score: 3.35/5, +10%)
-- [x] **M3** : Dataset v0 (49 exemples structures)
-- [x] **M4** : Fine-tune LoRA (pipeline mlx-lm)
-- [ ] **M5** : Evaluation Rust automatique (compilation)
-- [ ] **M6** : Packaging et distribution
+- [x] **M0** : Structure du projet
+- [x] **M1** : Baseline llama.cpp + CLI (3.00/5)
+- [x] **M2** : RAG v0 (+10%)
+- [x] **M3** : Dataset v0 (49 exemples)
+- [x] **M4** : Fine-tune LoRA
+- [x] **M5** : Verification compilation (87%)
+- [x] **M6** : Packaging
+
+## Installation detaillee
+
+```bash
+# Etape par etape
+make setup           # Dependances Python
+make install-llama   # Compiler llama.cpp
+make download-model  # Telecharger le modele GGUF
+make build-index     # Construire l'index RAG
+
+# Verifier
+make check
+```
 
 ## Licence
 
-MIT License - voir [LICENSE](LICENSE)
+MIT License
 
 ## Auteur
 
