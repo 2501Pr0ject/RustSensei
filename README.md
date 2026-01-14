@@ -39,7 +39,7 @@ RustSenseï/
 ## Installation
 
 ```bash
-git clone https://github.com/votre-username/RustSensei.git
+git clone https://github.com/2501Pr0ject/RustSensei.git
 cd RustSenseï
 
 # Installation complète (Python + llama.cpp + modèle)
@@ -66,11 +66,13 @@ make eval
 
 ## Roadmap
 
-- [x] **M0** : Structure du projet, prompts d'évaluation
-- [x] **M1** : Baseline llama.cpp + CLI + éval (score: 3.00/5)
-- [ ] **M2** : RAG v0 (fiabilité)
-- [ ] **M3** : Dataset v0 (qualité)
-- [ ] **M4** : Fine-tune LoRA
+- [x] **M0** : Structure du projet, prompts d'evaluation
+- [x] **M1** : Baseline llama.cpp + CLI + eval (score: 3.00/5)
+- [x] **M2** : RAG v0 (score: 3.35/5, +10%)
+- [x] **M3** : Dataset v0 (49 exemples structures)
+- [x] **M4** : Fine-tune LoRA (pipeline mlx-lm)
+- [ ] **M5** : Evaluation Rust automatique (compilation)
+- [ ] **M6** : Packaging et distribution
 
 ## Licence
 
