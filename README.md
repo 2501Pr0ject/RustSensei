@@ -71,12 +71,15 @@ let s2 = s.clone();  // ou let s2 = &s;
 
 ```
 RustSensei/
-├── app/           # CLI
+├── app/           # CLI et RAG (chat.py, rag.py)
 ├── scripts/       # Evaluation, training, export
-├── configs/       # Configuration modele et RAG
+├── configs/       # Configuration modele, RAG, training
+├── data/          # Dataset d'entrainement
 ├── eval/          # Prompts d'evaluation
+├── models/        # Modeles GGUF et adaptateurs LoRA
 ├── rag/           # Index de documentation
-└── reports/       # Resultats
+├── reports/       # Resultats et metriques
+└── vendor/        # llama.cpp
 ```
 
 ## Documentation
@@ -93,6 +96,7 @@ RustSensei/
 - [x] **M4** : Fine-tune LoRA
 - [x] **M5** : Verification compilation (87%)
 - [x] **M6** : Packaging
+- [ ] **M7** : RAG avance (rerank, chunking ameliore)
 
 ## Installation detaillee
 
