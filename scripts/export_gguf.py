@@ -40,7 +40,7 @@ def convert_to_gguf(merged_dir: Path, output_path: Path) -> bool:
         "--outtype", "f16",  # D'abord en f16, puis quantize
     ]
 
-    print(f"Conversion en GGUF...")
+    print("Conversion en GGUF...")
     print(f"Commande: {' '.join(cmd)}\n")
 
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)

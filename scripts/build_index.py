@@ -31,6 +31,7 @@ class Chunk:
     heading: str          # titre de section (H1 > H2 > H3)
     anchor: str           # ancre URL si disponible
     token_count: int      # nombre approximatif de tokens
+    base_url: str = ""    # URL de base pour citations (M7)
 
 
 def load_config():
@@ -110,18 +111,19 @@ def parse_markdown_sections(content: str, file_path: str, source_id: str, source
     return sections
 
 
-def chunk_section(section: dict, config: dict, source_id: str, source_name: str, file_path: str) -> list[Chunk]:
+def chunk_section(section: dict, config: dict, source_id: str, source_name: str, file_path: str, base_url: str = "") -> list[Chunk]:
     """
     Découpe une section en chunks si nécessaire.
 
     - Si section < min_tokens: sera mergée avec la suivante (géré par l'appelant)
-    - Si section > max_tokens: split en sous-chunks
+    - Si section > max_tokens: split en sous-chunks avec overlap
     - Sinon: garde tel quel
     """
     chunks = []
     content = section["content"]
     token_count = estimate_tokens(content)
-    max_tokens = config.get("max_tokens", 1000)
+    max_tokens = config.get("max_tokens", 800)
+    overlap_tokens = config.get("overlap_tokens", 50)
 
     if token_count <= max_tokens:
         # Section de taille acceptable
@@ -133,13 +135,15 @@ def chunk_section(section: dict, config: dict, source_id: str, source_name: str,
             heading=section["heading"],
             anchor=section["anchor"],
             token_count=token_count,
+            base_url=base_url,
         ))
     else:
-        # Section trop longue, split par paragraphes
+        # Section trop longue, split par paragraphes avec overlap
         paragraphs = content.split('\n\n')
         current_chunk = []
         current_tokens = 0
         chunk_index = 0
+        overlap_buffer = []  # Buffer pour l'overlap
 
         for para in paragraphs:
             para_tokens = estimate_tokens(para)
@@ -155,9 +159,22 @@ def chunk_section(section: dict, config: dict, source_id: str, source_name: str,
                     heading=f"{section['heading']} (part {chunk_index + 1})",
                     anchor=f"{section['anchor']}-{chunk_index}",
                     token_count=estimate_tokens(chunk_text),
+                    base_url=base_url,
                 ))
-                current_chunk = []
-                current_tokens = 0
+
+                # Garder les derniers paragraphes pour l'overlap
+                overlap_buffer = []
+                overlap_size = 0
+                for p in reversed(current_chunk):
+                    p_tokens = estimate_tokens(p)
+                    if overlap_size + p_tokens <= overlap_tokens:
+                        overlap_buffer.insert(0, p)
+                        overlap_size += p_tokens
+                    else:
+                        break
+
+                current_chunk = overlap_buffer.copy()
+                current_tokens = overlap_size
                 chunk_index += 1
 
             current_chunk.append(para)
@@ -175,6 +192,7 @@ def chunk_section(section: dict, config: dict, source_id: str, source_name: str,
                 heading=f"{section['heading']}{suffix}",
                 anchor=f"{section['anchor']}-{chunk_index}" if chunk_index > 0 else section['anchor'],
                 token_count=estimate_tokens(chunk_text),
+                base_url=base_url,
             ))
 
     return chunks
@@ -205,6 +223,7 @@ def merge_small_chunks(chunks: list[Chunk], min_tokens: int) -> list[Chunk]:
                 heading=buffer.heading,  # Garder le heading du premier
                 anchor=buffer.anchor,
                 token_count=estimate_tokens(merged_text),
+                base_url=buffer.base_url,  # Garder l'URL du premier
             )
 
             if merged_chunk.token_count < min_tokens:
@@ -225,6 +244,7 @@ def process_source(source_config: dict, chunking_config: dict) -> list[Chunk]:
     source_path = PROJECT_ROOT / source_config["path"]
     source_id = source_config["id"]
     source_name = source_config["name"]
+    base_url = source_config.get("base_url", "")
 
     if not source_path.exists():
         console.print(f"  [yellow]Source non trouvée: {source_path}[/yellow]")
@@ -252,7 +272,7 @@ def process_source(source_config: dict, chunking_config: dict) -> list[Chunk]:
 
         # Chunker chaque section
         for section in sections:
-            chunks = chunk_section(section, chunking_config, source_id, source_name, rel_path)
+            chunks = chunk_section(section, chunking_config, source_id, source_name, rel_path, base_url)
             all_chunks.extend(chunks)
 
     # Merger les chunks trop petits

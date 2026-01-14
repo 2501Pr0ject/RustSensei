@@ -19,8 +19,9 @@ index:
 chunking:
   method: "markdown_sections"  # Chunking par sections markdown
   min_tokens: 100              # Merge si < min_tokens
-  max_tokens: 1000             # Split si > max_tokens
-  target_tokens: 500           # Taille cible
+  max_tokens: 800              # Split si > max_tokens (reduit pour plus de precision)
+  target_tokens: 400           # Taille cible
+  overlap_tokens: 50           # Overlap entre chunks pour continuite
   include_code_blocks: true    # Inclure les blocs de code dans les chunks
 
 # Sources de documents (M2 v0)
@@ -29,25 +30,36 @@ sources:
     id: "book"
     type: "markdown"
     path: "rag/docs/book/src"
+    base_url: "https://doc.rust-lang.org/book"
     enabled: true
 
   - name: "Rust by Example"
     id: "rbe"
     type: "markdown"
     path: "rag/docs/rbe/src"
+    base_url: "https://doc.rust-lang.org/rust-by-example"
     enabled: true
 
   - name: "Rust Reference"
     id: "reference"
     type: "markdown"
     path: "rag/docs/reference/src"
+    base_url: "https://doc.rust-lang.org/reference"
     enabled: true
 
 # Retrieval settings
 retrieval:
-  top_k: 5               # Nombre de chunks à récupérer
+  top_k: 5               # Nombre de chunks finaux
+  initial_k: 15          # Nombre de chunks pour rerank (avant filtrage)
   score_threshold: 0.3   # Score minimum (cosine similarity)
   max_citations: 4       # Citations max à afficher
+
+# Reranking (M7)
+rerank:
+  enabled: false  # Desactive temporairement pour tests
+  model: "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Cross-encoder rapide
+  top_k: 5               # Nombre de resultats apres rerank
+  batch_size: 16
 
 # Augmentation du prompt
 augmentation:

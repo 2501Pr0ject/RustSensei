@@ -38,13 +38,14 @@ def check_rag_available() -> tuple[bool, str]:
 
 
 class RAGRetriever:
-    """Retriever RAG avec FAISS et embeddings."""
+    """Retriever RAG avec FAISS, embeddings et reranking."""
 
     def __init__(self):
         self.config = get_rag_config()
         self.index = None
         self.metadata = None
         self.model = None
+        self.reranker = None
         self._load_index()
 
     def _load_index(self):
@@ -81,6 +82,19 @@ class RAGRetriever:
             self.model = SentenceTransformer(model_name, device=device)
         return self.model
 
+    def _get_reranker(self):
+        """Charge le modèle de reranking (lazy loading)."""
+        if self.reranker is None:
+            rerank_config = self.config.get("rerank", {})
+            if not rerank_config.get("enabled", False):
+                return None
+
+            from sentence_transformers import CrossEncoder
+
+            model_name = rerank_config.get("model", "cross-encoder/ms-marco-MiniLM-L-6-v2")
+            self.reranker = CrossEncoder(model_name)
+        return self.reranker
+
     def retrieve(self, query: str, top_k: int = None) -> list[dict]:
         """
         Récupère les chunks les plus pertinents pour une requête.
@@ -97,6 +111,10 @@ class RAGRetriever:
         if top_k is None:
             top_k = self.config["retrieval"]["top_k"]
 
+        # Nombre de candidats pour rerank
+        rerank_config = self.config.get("rerank", {})
+        initial_k = self.config["retrieval"].get("initial_k", top_k * 3)
+
         model = self._get_model()
 
         # Encoder la requête
@@ -105,20 +123,56 @@ class RAGRetriever:
             normalize_embeddings=self.config["embeddings"].get("normalize", True),
         )
 
-        # Recherche dans l'index
-        scores, indices = self.index.search(np.array(query_embedding), top_k)
+        # Recherche dans l'index (plus de candidats si rerank actif)
+        search_k = initial_k if rerank_config.get("enabled", False) else top_k
+        scores, indices = self.index.search(np.array(query_embedding), search_k)
 
         # Filtrer par score minimum
         threshold = self.config["retrieval"].get("score_threshold", 0.3)
-        results = []
+        candidates = []
 
         for score, idx in zip(scores[0], indices[0]):
             if idx >= 0 and score >= threshold:
                 chunk = self.metadata[idx].copy()
                 chunk["score"] = float(score)
-                results.append(chunk)
+                candidates.append(chunk)
 
-        return results
+        # Reranking si actif
+        if rerank_config.get("enabled", False) and candidates:
+            candidates = self._rerank(query, candidates, top_k)
+
+        return candidates[:top_k]
+
+    def _rerank(self, query: str, chunks: list[dict], top_k: int) -> list[dict]:
+        """
+        Reordonne les chunks avec un cross-encoder.
+
+        Args:
+            query: Question de l'utilisateur.
+            chunks: Candidats à reordonner.
+            top_k: Nombre de résultats finaux.
+
+        Returns:
+            Chunks réordonnés par pertinence.
+        """
+        reranker = self._get_reranker()
+        if reranker is None:
+            return chunks
+
+        # Préparer les paires (query, chunk)
+        pairs = [(query, chunk["text"]) for chunk in chunks]
+
+        # Scorer avec le cross-encoder
+        rerank_scores = reranker.predict(pairs)
+
+        # Associer scores et chunks
+        for chunk, score in zip(chunks, rerank_scores):
+            chunk["rerank_score"] = float(score)
+
+        # Trier par score de rerank
+        chunks.sort(key=lambda x: x.get("rerank_score", 0), reverse=True)
+
+        return chunks[:top_k]
 
     def format_context(self, chunks: list[dict], max_tokens: int = None) -> str:
         """
@@ -167,30 +221,74 @@ class RAGRetriever:
 
         return guarded_context
 
-    def format_citation(self, chunk: dict) -> str:
+    def format_citation(self, chunk: dict, include_url: bool = False) -> str:
         """
         Formate une citation pour un chunk.
 
         Args:
             chunk: Chunk avec métadonnées.
+            include_url: Inclure l'URL (M7).
 
         Returns:
-            Citation formatée [Source — Heading].
+            Citation formatée [Source — Heading] ou avec URL.
         """
         source_name = chunk.get("source_name", chunk.get("source", "Source"))
         heading = chunk.get("heading", "")
 
+        # Construire la citation de base
         if heading:
-            return f"[{source_name} — {heading}]"
-        return f"[{source_name}]"
+            citation = f"[{source_name} — {heading}]"
+        else:
+            citation = f"[{source_name}]"
 
-    def get_citations(self, chunks: list[dict], max_citations: int = None) -> list[str]:
+        # Ajouter l'URL si demandé (M7)
+        if include_url:
+            url = self._build_url(chunk)
+            if url:
+                citation = f"{citation}({url})"
+
+        return citation
+
+    def _build_url(self, chunk: dict) -> str:
+        """
+        Construit l'URL vers la documentation pour un chunk.
+
+        Args:
+            chunk: Chunk avec métadonnées.
+
+        Returns:
+            URL vers la documentation officielle ou chaîne vide.
+        """
+        base_url = chunk.get("base_url", "")
+        if not base_url:
+            return ""
+
+        path = chunk.get("path", "")
+        anchor = chunk.get("anchor", "")
+
+        # Nettoyer le path (.md -> .html)
+        if path:
+            path = path.replace(".md", ".html")
+            # Retirer SUMMARY.html, README.html etc.
+            if path.endswith(("SUMMARY.html", "README.html")):
+                path = ""
+
+        url = base_url
+        if path:
+            url = f"{base_url}/{path}"
+        if anchor:
+            url = f"{url}#{anchor}"
+
+        return url
+
+    def get_citations(self, chunks: list[dict], max_citations: int = None, include_urls: bool = True) -> list[str]:
         """
         Extrait les citations uniques des chunks.
 
         Args:
             chunks: Liste de chunks.
             max_citations: Nombre max de citations (défaut: config).
+            include_urls: Inclure les URLs (M7, defaut: True).
 
         Returns:
             Liste de citations uniques.
@@ -202,9 +300,12 @@ class RAGRetriever:
         seen = set()
 
         for chunk in chunks:
-            citation = self.format_citation(chunk)
-            if citation not in seen:
-                seen.add(citation)
+            # Clé de déduplication basée sur source + heading (sans URL)
+            dedup_key = self.format_citation(chunk, include_url=False)
+            if dedup_key not in seen:
+                seen.add(dedup_key)
+                # Citation avec ou sans URL
+                citation = self.format_citation(chunk, include_url=include_urls)
                 citations.append(citation)
                 if len(citations) >= max_citations:
                     break

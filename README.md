@@ -96,7 +96,7 @@ RustSensei/
 - [x] **M4** : Fine-tune LoRA
 - [x] **M5** : Verification compilation (87%)
 - [x] **M6** : Packaging
-- [ ] **M7** : RAG avance (rerank, chunking ameliore)
+- [x] **M7** : RAG avance (+3% score)
 
 ## Installation detaillee
 

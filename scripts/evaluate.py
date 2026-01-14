@@ -13,11 +13,10 @@ from datetime import datetime
 from pathlib import Path
 
 import yaml
+from compile_check import check_response as check_compilation
 from rich.console import Console
 from rich.progress import track
 from rich.table import Table
-
-from compile_check import check_response as check_compilation
 
 console = Console()
 

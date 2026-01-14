@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-01-09T14:46:34.194855",
+  "mode": "rag",
+  "model": {
+    "name": "Qwen2.5-Coder-1.5B-Instruct",
+    "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M"
+  },
+  "inference_params": {
+    "n_ctx": 4096,
+    "n_predict": 1024,
+    "threads": 8,
+    "n_gpu_layers": 99,
+    "temp": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "llama_cpp_rev": "b4823",
+  "total_prompts": 5,
+  "results": [
+    {
+      "prompt_id": 1,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment déclarer une variable mutable en Rust ?",
+      "response": "Pour déclarer une variable mutable en Rust, utilisez la syntaxe suivante :\n\n```rust\nlet mut variable_name = initial_value;\n```\n\nDans cette ligne de code :\n- `let` indique que vous initialisez une nouvelle variable.\n- `mut` signifie que `variable_name` est mutable, ce qui signifie qu'elle peut être modifiée après son initialisation.\n- `variable_name` est le nom de votre variable.\n- `initial_value` est la valeur initiale que vous voulez donner à `variable_name`.\n\nPar exemple :\n\n```rust\nlet mut x = 10;\n```\n\nDans cet exemple, `x` est une variable mutable qui commence avec la valeur 10. Vous pouvez ensuite modifier cette valeur en utilisant l'opérateur d'affectation `=` :\n\n```rust\nx += 5; // maintenant x contient 15\n```\n\nLes variables mutable sont utiles lorsque vous souhaitez modifier un objet sans passer par une nouvelle référence à lui-même ou lorsqu'il est nécessaire de modifier le contenu de la variable. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.333333333333334
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.6666666666666666,
+          "response_length": true
+        },
+        "word_count": 150,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust Book — Data Types]",
+        "[Rust Book — How to Write Tests > Structuring Test Functions (part 1)]",
+        "[Rust Book — Pattern Syntax > Ignoring Values in a Pattern (part 2)]",
+        "[Rust Book — Our First Async Program > Defining the page_title Function (part 2)]"
+      ]
+    },
+    {
+      "prompt_id": 2,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quelle est la différence entre let et const en Rust ?",
+      "response": "La difference principale entre `let` et `const` dans Rust consiste à leur scoping. \n\n- `let`: Les variables déclarées avec `let` sont locales au bloc où elles sont définies. Cela signifie qu'elles ne peuvent être utilisées que si elles sont accessibles à partir de ce bloc.\n\n```rust\nfn main() {\n    let x = 5; // Déclaration d'une variable locale 'x'\n    println!(\"The value of x is: {}\", x); // Utilisation de 'x' dans le bloc\n\n    // 'y' est accessible ici car elle est déclarée au niveau du bloc principal\n    let y = 10;\n}\n```\n\n- `const`: Les variables déclarées avec `const` sont également locales au bloc où elles sont définies, mais ils doivent être de type constante (par exemple, des nombres entiers). Cela signifie que les valeurs de constantes ne peuvent pas changer lors de l'exécution du programme.\n\n```rust\nfn main() {\n    // Déclaration d'une variable locale 'const' 'x'\n    const X: i32 = 5;\n\n    println!(\"The value of X is: {}\", X); // Utilisation de 'X' dans le bloc\n\n    // 'y' est inaccessible ici car elle est déclarée au niveau du bloc principal\n    // let y = 10; // Erreur: impossible d'accéder à la constante 'y'\n}\n```\n\nEn résumé, `let` a un scoping local et peut être modifiée pendant l'exécution, tandis que `const` est un scoping local qui ne peut pas être modifié lors de l'exécution et doit être de type constante. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 234,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Testing]",
+        "[Rust Book — Introduction > Who Rust Is For > Open Source Developers]",
+        "[Rust Book — Data Types]",
+        "[Rust by Example — Rust by Example]"
+      ]
+    },
+    {
+      "prompt_id": 3,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment afficher du texte dans la console en Rust ?",
+      "response": "Pour afficher du texte dans la console en Rust, vous pouvez utiliser l'instruction `println!`. Voici un exemple :\n\n```rust\nfn main() {\n    println!(\"Hello World!\");\n}\n```\n\nDans cet exemple, `\"Hello World!\"` est une chaîne de caractères qui sera affichée à la console. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 2.6666666666666665
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.3333333333333333,
+          "response_length": false
+        },
+        "word_count": 45,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Playground]",
+        "[Rust by Example — Playground > Using it with docs]",
+        "[Rust Book — Installation]",
+        "[Rust Book — Installation > Installing `rustup` on Linux or macOS]"
+      ]
+    },
+    {
+      "prompt_id": 4,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quels sont les types primitifs scalaires en Rust ?",
+      "response": "Dans Rust, les types primitifs scalaires sont :\n\n- `u8`: entier non signé à 8 bits\n- `i8`: entier signé à 8 bits\n- `u16`: entier non signé à 16 bits\n- `i16`: entier signé à 16 bits\n- `u32`: entier non signé à 32 bits\n- `i32`: entier signé à 32 bits\n- `u64`: entier non signé à 64 bits\n- `i64`: entier signé à 64 bits\n- `f32`: flottant de 32 bits\n- `f64`: flottant de 64 bits\n\nCes types sont utilisés pour stocker des valeurs simples et rapides. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 2.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": false,
+          "expected_topics": 0.5,
+          "response_length": false
+        },
+        "word_count": 94,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Types]",
+        "[Rust Book — Data Types > Compound Types (part 1)]",
+        "[Rust Reference — Influences]",
+        "[Rust Book — Programming a Guessing Game > Summary]"
+      ]
+    },
+    {
+      "prompt_id": 5,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?",
+      "response": "Pour créer une fonction en Rust qui retourne une valeur, vous devez déclarer la fonction avec un type de retour. Par exemple, si vous voulez retourner un entier, vous pouvez utiliser le type `i32`. Voici un exemple :\n\n```rust\nfn add_two_numbers(a: i32, b: i32) -> i32 {\n    a + b\n}\n```\n\nDans cet exemple, la fonction `add_two_numbers` prend deux paramètres `a` et `b`, qui sont de type `i32`. Elle retourne une valeur de même type, `i32`.\n\nVous pouvez appeler cette fonction en passant les arguments que vous souhaitez additionner :\n\n```rust\nlet result = add_two_numbers(5, 10);\nprintln!(\"The result is: {}\", result); // Output will be \"The result is: 15\"\n```\n\nCes deux exemples montrent comment déclarer une fonction et comment appeler une fonction pour retourner une valeur dans Rust. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 133,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust Book — Functional Language Features: Iterators and Closures]",
+        "[Rust Book — Data Types]",
+        "[Rust by Example — Higher Order Functions]",
+        "[Rust Book — How to Write Tests > Structuring Test Functions (part 1)]"
+      ]
+    }
+  ]
+}

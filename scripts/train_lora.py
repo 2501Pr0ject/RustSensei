@@ -79,7 +79,7 @@ def run_training() -> Path:
         "--train",
     ]
 
-    print(f"\nLancement training LoRA...")
+    print("\nLancement training LoRA...")
     print(f"Config: {LORA_CONFIG}")
     print(f"Commande: {' '.join(cmd)}\n")
 
@@ -109,7 +109,7 @@ def fuse_model() -> Path:
         "--save-path", str(merged_dir),
     ]
 
-    print(f"\nFusion modele + adaptateurs...")
+    print("\nFusion modele + adaptateurs...")
     print(f"Commande: {' '.join(cmd)}\n")
 
     result = subprocess.run(cmd, cwd=PROJECT_ROOT)

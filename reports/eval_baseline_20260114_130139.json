@@ -1,0 +1,130 @@
+{
+  "timestamp": "2026-01-14T13:01:39.007186",
+  "mode": "baseline",
+  "model": {
+    "name": "Qwen2.5-Coder-1.5B-Instruct",
+    "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M"
+  },
+  "inference_params": {
+    "n_ctx": 4096,
+    "n_predict": 1024,
+    "threads": 8,
+    "n_gpu_layers": 99,
+    "temp": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "llama_cpp_rev": "b4823",
+  "total_prompts": 5,
+  "results": [
+    {
+      "prompt_id": 1,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment déclarer une variable mutable en Rust ?",
+      "response": "Pour déclarer une variable mutable en Rust, utilisez la syntaxe `let mut nom = valeur;`, où `nom` est le nom de votre variable. La variable sera alors modifiable après sa déclaration. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 2.3333333333333335
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": false,
+          "expected_topics": 0.6666666666666666,
+          "response_length": false
+        },
+        "word_count": 34,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 2,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quelle est la différence entre let et const en Rust ?",
+      "response": "`let` et `const` sont deux mots-clés en Rust pour déclarer des variables, mais ils ont des différences importantes. \n\n- **Type de données**: `let` peut avoir un type de donnée défini à l'avance (telle que `i32`, `f64`, `String`), tandis que `const` doit avoir un type qui est déterminé lors de la compilation ( comme des nombres entiers, des chaînes de caractères).\n\n- **Durabilité**: Les variables créées avec `let` sont temporaires et existent pendant toute la durée du bloc dans lequel elles sont déclarées. Les variables créées avec `const` doivent avoir une valeur qui est résolue à l'exécution du code (pas pendant la compilation). Cela signifie que les constantes ne peuvent pas être changées après leur initialisation.\n\n- **Scénarios de utilisation**: Utilisez `let` pour déclarer des variables qui nécessitent des modifications ou une durée d'existence limitée. Utilisez `const` pour déclarer des valeurs qui doivent rester les mêmes lors de la compilation et qui nécessitent un type de donnée immuable.\n\nVoici quelques exemples :\n\n```rust\n// Déclaration avec let\nlet x = 10;\n\n// Déclaration avec const (cette variable doit être résolue à l'exécution)\nconst Y: i32 = 20;\n```\n\nEn résumé, `let` est utilisé pour déclarer des variables qui peuvent changer de valeur pendant le temps et dont le type peut être défini au moment de la création, tandis que `const` est utilisé pour déclarer des valeurs immutables qui doivent rester les mêmes lors de la compilation. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 238,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 3,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment afficher du texte dans la console en Rust ?",
+      "response": "Pour afficher du texte dans la console en Rust, vous utilisez l'instruction `println!`. Voici un exemple :\n\n```rust\nfn main() {\n    println!(\"Bonjour, monde!\");\n}\n```\n\nDans cet exemple, `\"Bonjour, monde!\"` est le texte que vous souhaitez afficher. `println!` est une fonction qui prend une chaîne de caractères comme premier argument et affiche ce texte dans la console avec un retour à la ligne.\n\nVous pouvez également utiliser `print!` pour afficher des textes sans saut de ligne :\n\n```rust\nfn main() {\n    print!(\"Bonjour, monde!\");\n}\n```\n\nLa différence est que `println!` ajoute automatiquement le caractère de retour à la ligne (`\\n`) à la fin du texte. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.666666666666667
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.3333333333333333,
+          "response_length": true
+        },
+        "word_count": 108,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 4,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quels sont les types primitifs scalaires en Rust ?",
+      "response": "En Rust, les types primitifs scalaires sont : i8 (entier signé), u8 (entier non signé), i16, u16, i32, u32, i64, u64, f32 et f64. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 1.0
+        },
+        "auto_checks": {
+          "language": false,
+          "code_blocks": false,
+          "expected_topics": 0.5,
+          "response_length": false
+        },
+        "word_count": 27,
+        "sections_found": 0
+      }
+    },
+    {
+      "prompt_id": 5,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?",
+      "response": "Pour créer une fonction en Rust qui retourne une valeur, vous devez déclarer la fonction avec un type d'entrée et un type de sortie. Voici comment faire :\n\n```rust\nfn addition(a: i32, b: i32) -> i32 {\n    a + b\n}\n\nfn main() {\n    let result = addition(5, 10);\n    println!(\"Le résultat est {}\", result);\n}\n```\n\nDans cet exemple, `addition` est une fonction qui prend deux entiers (i32) en entrée et retourne un entier également. Le type de sortie est spécifié après le point d'exclamation (`-> i32`). Dans `main`, nous appelons la fonction avec les arguments 5 et 10, puis stocke le résultat dans la variable `result`. Enfin, nous affichons le résultat avec `println!()`. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 117,
+        "sections_found": 0
+      }
+    }
+  ]
+}

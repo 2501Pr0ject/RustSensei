@@ -1,0 +1,160 @@
+{
+  "timestamp": "2026-01-09T15:24:03.812472",
+  "mode": "rag",
+  "model": {
+    "name": "Qwen2.5-Coder-1.5B-Instruct",
+    "repo": "Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF",
+    "file": "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf",
+    "quantization": "Q4_K_M"
+  },
+  "inference_params": {
+    "n_ctx": 4096,
+    "n_predict": 1024,
+    "threads": 8,
+    "n_gpu_layers": 99,
+    "temp": 0.7,
+    "top_p": 0.9,
+    "top_k": 40,
+    "repeat_penalty": 1.1,
+    "seed": 42
+  },
+  "llama_cpp_rev": "b4823",
+  "total_prompts": 5,
+  "results": [
+    {
+      "prompt_id": 1,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment déclarer une variable mutable en Rust ?",
+      "response": "Pour déclarer une variable mutable en Rust, utilisez la syntaxe suivante :\n\n```rust\nlet mut variable_name = initial_value;\n```\n\nDans cette exemple, `variable_name` est une variable mutable qui peut être modifiée après son déclaration. Le `initial_value` peut être de n'importe quel type de données, comme un entier, un flotant ou un chaîne de caractères. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.333333333333334
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.6666666666666666,
+          "response_length": false
+        },
+        "word_count": 57,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust Book — Data Types]",
+        "[Rust Book — How to Write Tests > Structuring Test Functions (part 1)]",
+        "[Rust Book — Pattern Syntax > Ignoring Values in a Pattern (part 2)]",
+        "[Rust Book — Our First Async Program > Defining the page_title Function (part 2)]"
+      ]
+    },
+    {
+      "prompt_id": 2,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quelle est la différence entre let et const en Rust ?",
+      "response": "La difference entre `let` et `const` en Rust consiste au fait qu'elles sont utilisées dans des contextes différents. \n\n- **`let`:** Utilisée pour déclarer des variables qui peuvent être modifiées après leur initialisation.\n\n  ```rust\n  let mut x = 5;\n  x = 10; // x est maintenant modifié\n  ```\n\n- **`const`:** Utilisée pour déclarer des constantes qui ne peuvent pas être modifiées après leur initialisation. Les constantes doivent avoir un type de valeur fixe et sont toujours immutables.\n\n  ```rust\n  const PI: f64 = 3.14;\n  ```\n\nLorsque vous utilisez `const`, vous devez indiquer explicitement le type de la constante en utilisant le syntaxe `:` avec une valeur qui correspond au type voulu. Par exemple, `PI` est de type `f64`. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 4.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 119,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Testing]",
+        "[Rust Book — Introduction > Who Rust Is For > Open Source Developers]",
+        "[Rust Book — Data Types]",
+        "[Rust by Example — Rust by Example]"
+      ]
+    },
+    {
+      "prompt_id": 3,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment afficher du texte dans la console en Rust ?",
+      "response": "Pour afficher du texte dans la console en Rust, vous pouvez utiliser l'opérateur `println!`. Voici un exemple :\n\n```rust\nfn main() {\n    println!(\"Bonjour le monde!\");\n}\n```\n\nDans cet exemple, `println!` est une fonction qui utilise la syntaxe de la macro `format!` pour afficher du texte. L'espace après la fermeture des parentheses `)` est obligatoire dans ce contexte.\n\nLa sortie de ce programme sera :\n\n```\nBonjour le monde!\n```\n\nPour utiliser un autre type de formatage, vous pouvez utiliser des macros comme `println!`, `print!`, `format!` ou `write!`. Les exemples suivants montrent comment utiliser ces macros pour afficher du texte dans la console.\n\n```rust\nfn main() {\n    println!(\"Je suis une chaîne.\");\n    print!(\"Je suis une autre chaîne.\");  // Print sans newline\n    format!(\"Je suis un troisième chaîne.\");  // Format sans newline\n    write!(&mut std::io::stdout(), \"Je suis un quatrième chaîne.\").unwrap();  // Write à la place de stdout\n}\n```\n\nDans ces exemples, `println!` et `print!` sont utilisés pour afficher du texte avec une nouvelle ligne. `format!` est utilisé pour afficher du texte sans nouvelle ligne. `write!` est utilisé pour écrire du texte dans une destination spécifiée, ici `stdout`. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 5.0
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 1.0,
+          "response_length": true
+        },
+        "word_count": 187,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Playground]",
+        "[Rust by Example — Playground > Using it with docs]",
+        "[Rust Book — Installation]",
+        "[Rust Book — Installation > Installing `rustup` on Linux or macOS]"
+      ]
+    },
+    {
+      "prompt_id": 4,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Quels sont les types primitifs scalaires en Rust ?",
+      "response": "Dans Rust, les types primitifs scalaires sont les plus simples qui permettent de stocker des valeurs non complexes. Voici la liste de ces types :\n\n- `i8`, `u8` : Entiers signés et non signés sur 8 bits.\n- `i16`, `u16` : Entiers signés et non signés sur 16 bits.\n- `i32`, `u32` : Entiers signés et non signés sur 32 bits.\n- `i64`, `u64` : Entiers signés et non signés sur 64 bits.\n- `isize`, `usize` : Entiers signés et non signés sur la taille de l'architecture.\n\nPour stocker des nombres décimaux, Rust utilise les types :\n\n- `f32`\n- `f64`\n\nPour représenter des chaînes de caractères, utilisez le type :\n\n- `String`\n\nEn plus d'essayer ces types directement dans votre code, vous pouvez également utiliser la fonction `std::prelude::integer_types` pour accéder à l'ensemble de ces types. [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.0000000000000004
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": false,
+          "expected_topics": 0.5,
+          "response_length": true
+        },
+        "word_count": 139,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust by Example — Types]",
+        "[Rust Book — Data Types > Compound Types (part 1)]",
+        "[Rust Reference — Influences]",
+        "[Rust Book — Programming a Guessing Game > Summary]"
+      ]
+    },
+    {
+      "prompt_id": 5,
+      "category": "basics",
+      "difficulty": "debutant",
+      "prompt": "Comment créer une fonction en Rust qui retourne une valeur ?",
+      "response": "Pour créer une fonction en Rust qui retourne une valeur, vous devez déclarer la fonction avec un type de retour. Par exemple, si vous voulez retourner un entier, vous pouvez utiliser le type `i32`. Voici un exemple :\n\n```rust\nfn add_two_numbers(a: i32, b: i32) -> i32 {\n    a + b\n}\n```\n\nDans cet exemple, la fonction `add_two_numbers` prend deux paramètres `a` et `b`, qui sont de type `i32`. Elle retourne une valeur de même type (`i32`). [end of text]",
+      "evaluation": {
+        "scores": {
+          "format": 0.0,
+          "auto_composite": 3.0000000000000004
+        },
+        "auto_checks": {
+          "language": true,
+          "code_blocks": true,
+          "expected_topics": 0.5,
+          "response_length": false
+        },
+        "word_count": 80,
+        "sections_found": 0
+      },
+      "citations": [
+        "[Rust Book — Functional Language Features: Iterators and Closures]",
+        "[Rust Book — Data Types]",
+        "[Rust by Example — Higher Order Functions]",
+        "[Rust Book — How to Write Tests > Structuring Test Functions (part 1)]"
+      ]
+    }
+  ]
+}
