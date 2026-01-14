@@ -89,14 +89,19 @@ RustSensei/
 
 ## Roadmap
 
-- [x] **M0** : Structure du projet
-- [x] **M1** : Baseline llama.cpp + CLI (3.00/5)
-- [x] **M2** : RAG v0 (+10%)
-- [x] **M3** : Dataset v0 (49 exemples)
-- [x] **M4** : Fine-tune LoRA
-- [x] **M5** : Verification compilation (87%)
-- [x] **M6** : Packaging
-- [x] **M7** : RAG avance (+3% score)
+### v1.0 (termine)
+
+- [x] **M0-M7** : CLI + RAG + Fine-tune + Packaging
+
+### v2.0 (planifie)
+
+- [ ] **M8** : Web UI (React + TypeScript + Tailwind)
+- [ ] **M9** : Dataset etendu (200+ exemples)
+- [ ] **M10** : Std docs dans RAG
+- [ ] **M11** : Docker
+- [ ] **M12** : Qualite (reranker, eval humaine)
+
+Details : voir [Roadmap v2.0](#roadmap-v20)
 
 ## Installation detaillee
 
@@ -118,3 +123,49 @@ MIT License
 ## Auteur
 
 **Abdel TOUATI**
+
+---
+
+## Roadmap v2.0
+
+### M8 — Web UI
+
+| Composant | Techno |
+|-----------|--------|
+| Frontend | React + TypeScript + Tailwind |
+| Backend | FastAPI |
+| Build | Vite |
+
+Fonctionnalites :
+- Chat interface avec historique
+- Toggle RAG on/off
+- Citations avec liens vers docs
+- Syntax highlighting Rust
+- Mode sombre
+
+### M9 — Dataset etendu
+
+- 200+ exemples (vs 49 actuels)
+- Focus lifetimes/borrowing (categories faibles)
+- Validation compilation automatique
+- Fine-tune LoRA v2
+
+### M10 — Std docs dans RAG
+
+- Integration documentation std library
+- Meilleure couverture API Rust
+- Chunking adapte aux signatures de fonctions
+
+### M11 — Docker
+
+- Image Docker tout-en-un
+- docker-compose (API + UI)
+- Installation one-click
+- Support GPU optionnel
+
+### M12 — Qualite
+
+- Reranker multilingue (mmarco)
+- Evaluation humaine
+- Support multi-fichiers (projets Cargo)
+- Modele 7B (optionnel)
