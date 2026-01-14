@@ -17,6 +17,8 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 
+from compile_check import check_response as check_compilation
+
 console = Console()
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -127,11 +129,11 @@ def call_llama_cli(prompt: str, config: dict) -> str:
 
 
 def evaluate_response(response: str, prompt_data: dict) -> dict:
-    """Évalue une réponse selon la grille."""
+    """Evalue une reponse selon la grille."""
     scores = {}
     auto_checks = {}
 
-    # 1. Langue française
+    # 1. Langue francaise
     french_words = ["le", "la", "les", "de", "du", "des", "un", "une", "est", "sont"]
     french_count = sum(1 for word in french_words if f" {word} " in response.lower())
     auto_checks["language"] = french_count >= 3
@@ -149,21 +151,30 @@ def evaluate_response(response: str, prompt_data: dict) -> dict:
     else:
         auto_checks["expected_topics"] = 1.0
 
-    # 4. Longueur de réponse
+    # 4. Longueur de reponse
     word_count = len(response.split())
     auto_checks["response_length"] = 100 <= word_count <= 800
 
-    # Score de format (sections présentes)
+    # 5. Compilation du code Rust
+    compile_result = check_compilation(response)
+    auto_checks["compilation"] = compile_result
+
+    # Score de format (sections presentes)
     sections = ["## TL;DR", "## Problème", "## Solution", "## Explication", "## À retenir"]
     sections_found = sum(1 for s in sections if s in response)
     scores["format"] = sections_found / len(sections) * 5
 
-    # Score composite
+    # Score composite (inclut compilation si code present)
+    compilation_score = 0
+    if compile_result["has_code"]:
+        compilation_score = compile_result["compilation_rate"] if compile_result["compilation_rate"] else 0
+
     auto_score = (
         (1 if auto_checks["language"] else 0) * 0.2
-        + (1 if auto_checks["code_blocks"] else 0) * 0.2
-        + auto_checks["expected_topics"] * 0.4
-        + (1 if auto_checks["response_length"] else 0) * 0.2
+        + (1 if auto_checks["code_blocks"] else 0) * 0.15
+        + auto_checks["expected_topics"] * 0.35
+        + (1 if auto_checks["response_length"] else 0) * 0.15
+        + compilation_score * 0.15  # Bonus compilation
     )
     scores["auto_composite"] = auto_score * 5
 
@@ -269,6 +280,19 @@ def print_summary(results: list[dict]):
         )
         pct = passed / len(results) * 100 if results else 0
         console.print(f"  {check}: {passed}/{len(results)} ({pct:.0f}%)")
+
+    # Compilation rate
+    total_blocks = 0
+    compiled_blocks = 0
+    for r in results:
+        comp = r["evaluation"]["auto_checks"].get("compilation", {})
+        if comp.get("has_code"):
+            total_blocks += comp.get("blocks_count", 0)
+            compiled_blocks += comp.get("compiled", 0)
+
+    if total_blocks > 0:
+        comp_rate = compiled_blocks / total_blocks * 100
+        console.print(f"  [bold]compilation[/bold]: {compiled_blocks}/{total_blocks} ({comp_rate:.0f}%)")
 
 
 def save_results(results: list[dict], config: dict, output_path: Path, use_rag: bool = False):

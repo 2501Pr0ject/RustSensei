@@ -1,5 +1,5 @@
 .PHONY: setup install install-dev install-train install-llama download-model \
-        chat eval eval-smoke build-index check \
+        chat eval eval-smoke build-index check compile-check \
         lint format test clean clean-all help \
         train export-gguf
 
@@ -200,6 +200,14 @@ eval-compare: ## Comparaison A/B baseline vs RAG (10 prompts)
 	fi
 	@echo "$(GREEN)Comparaison A/B baseline vs RAG...$(NC)"
 	$(PYTHON) scripts/evaluate.py --compare --limit 10
+
+compile-check: ## Verifie la compilation du code Rust dans les reponses
+	@echo "$(GREEN)Verification compilation...$(NC)"
+	@if ls reports/eval_baseline_*.json 1> /dev/null 2>&1; then \
+		$(PYTHON) scripts/compile_check.py --file $$(ls -t reports/eval_baseline_*.json | head -1); \
+	else \
+		echo "$(YELLOW)Aucun fichier d'evaluation trouve. Lancez: make eval$(NC)"; \
+	fi
 
 # ============================================================================
 # RAG

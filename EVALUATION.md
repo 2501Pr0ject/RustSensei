@@ -51,14 +51,15 @@ Les prompts sont stockés dans `eval/prompts_fr.jsonl` (format JSON Lines).
 
 La grille est définie dans `eval/rubric.json`.
 
-### Critères automatiques
+### Criteres automatiques
 
-| Critère | Poids | Description |
+| Critere | Poids | Description |
 |---------|-------|-------------|
-| language | 20% | Réponse en français (détection mots-clés) |
-| code_blocks | 20% | Présence de blocs ```rust |
-| expected_topics | 40% | Couverture des topics attendus |
-| response_length | 20% | Longueur entre 100-800 mots |
+| language | 20% | Reponse en francais (detection mots-cles) |
+| code_blocks | 15% | Presence de blocs ```rust |
+| expected_topics | 35% | Couverture des topics attendus |
+| response_length | 15% | Longueur entre 100-800 mots |
+| compilation | 15% | Code Rust compile avec rustc |
 
 ### Score format (bonus)
 
@@ -110,25 +111,37 @@ Pour reproduire exactement les mêmes résultats :
 3. Utiliser le même seed (`42`)
 4. Garder les mêmes paramètres d'inférence
 
-## Baseline M1
+## Resultats
 
-| Métrique | Valeur |
-|----------|--------|
-| Score global | 2.87/5 |
-| Langue FR | 90% |
-| Code blocks | 70% |
-| Longueur OK | 60% |
-| Format structuré | 0% |
+### Metriques actuelles (20 prompts)
 
-Voir `reports/baseline_examples.md` pour 10 exemples annotés.
+| Metrique | Baseline | RAG |
+|----------|----------|-----|
+| Score global | 3.05/5 | 3.35/5 |
+| Langue FR | 95% | 100% |
+| Code blocks | 70% | 70% |
+| Longueur OK | 70% | 70% |
+| **Compilation** | **87%** | - |
 
-## Comparaisons futures
+### Verification compilation
 
-| Version | Score | Notes |
-|---------|-------|-------|
-| M1 Baseline | 2.87/5 | Sans RAG ni fine-tune |
-| M2 + RAG | TBD | Avec contexte documentation |
-| M4 + LoRA | TBD | Après fine-tuning |
+Le script `scripts/compile_check.py` extrait les blocs ```rust des reponses et les compile avec `rustc --edition 2021`.
+
+```bash
+# Verifier un fichier de resultats
+uv run python scripts/compile_check.py --file reports/eval_baseline.json
+
+# Verifier une reponse directement
+uv run python scripts/compile_check.py --response "```rust\nfn main() {}\n```"
+```
+
+### Historique
+
+| Version | Score | Compilation | Notes |
+|---------|-------|-------------|-------|
+| M1 Baseline | 3.00/5 | - | Sans RAG ni compilation check |
+| M2 + RAG | 3.35/5 | - | +10% avec contexte documentation |
+| M5 + Compile | 3.07/5 | 87% | Verification compilation integree |
 
 ## Ajouter des prompts
 
