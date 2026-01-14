@@ -1,0 +1,36 @@
+# Configuration mlx-lm LoRA pour RustSensei
+# ==========================================
+
+# Modele de base (sera telecharge depuis HuggingFace)
+model: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+
+# Data directory (contient train.jsonl et valid.jsonl)
+data: "data/mlx_train"
+
+# Parametres LoRA
+lora_parameters:
+  rank: 8
+  dropout: 0.0
+  scale: 20.0
+
+# Parametres d'entrainement
+num_layers: 16           # Couches a fine-tuner (-1 pour toutes)
+batch_size: 1            # Batch size (petit pour 16GB RAM)
+iters: 200               # Iterations (ajuster selon taille dataset)
+learning_rate: 1.0e-5    # Learning rate
+grad_accumulation_steps: 4  # Accumulation de gradients
+
+# Validation et reporting
+val_batches: 5
+steps_per_report: 10
+steps_per_eval: 50
+save_every: 50
+
+# Sequence length
+max_seq_length: 2048
+
+# Output
+adapter_path: "models/lora_adapters"
+
+# Reproductibilite
+seed: 42

@@ -30,6 +30,10 @@ dev = [
 eval = [
     "nltk>=3.8.0",
 ]
+train = [
+    "mlx>=0.16.0",
+    "mlx-lm>=0.18.0",
+]
 
 [project.scripts]
 rustsensei = "app.cli:app"

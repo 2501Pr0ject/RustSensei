@@ -1,0 +1,48 @@
+# Configuration Fine-tuning LoRA pour RustSensei
+# ==============================================
+# Utilise mlx-lm sur Apple Silicon
+
+# Modele de base
+model:
+  name: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
+  # Sera telecharge depuis HuggingFace si absent
+
+# Parametres LoRA
+lora:
+  rank: 8                    # Rang de la decomposition (8-64)
+  alpha: 16                  # Facteur de scaling (souvent 2x rank)
+  dropout: 0.05              # Dropout pour regularisation
+  target_modules:            # Couches a fine-tuner
+    - "q_proj"
+    - "v_proj"
+    - "k_proj"
+    - "o_proj"
+    - "gate_proj"
+    - "up_proj"
+    - "down_proj"
+
+# Parametres d'entrainement
+training:
+  epochs: 3                  # Nombre d'epochs (1-5 pour petit dataset)
+  batch_size: 1              # Batch size (1-2 pour 16GB RAM)
+  learning_rate: 1e-4        # LR (1e-5 a 2e-4 pour LoRA)
+  warmup_steps: 10           # Steps de warmup
+  gradient_accumulation: 4   # Accumulation pour simuler batch plus grand
+  max_seq_length: 2048       # Longueur max sequence
+  save_every: 50             # Sauvegarder tous les N steps
+  eval_every: 50             # Evaluer tous les N steps
+
+# Dataset
+data:
+  train_file: "data_samples/dataset_sample.jsonl"
+  # Format attendu: chat JSONL avec messages array
+  # Sera converti en format mlx par le script
+
+# Chemins de sortie
+output:
+  adapter_dir: "models/lora_adapters"      # Adaptateurs LoRA
+  merged_dir: "models/merged"              # Modele fusionne
+  gguf_file: "models/rustsensei-1.5b-q4_k_m.gguf"  # Export GGUF final
+
+# Seed pour reproductibilite
+seed: 42

@@ -1,6 +1,7 @@
-.PHONY: setup install install-dev install-llama download-model \
+.PHONY: setup install install-dev install-train install-llama download-model \
         chat eval eval-smoke build-index check \
-        lint format test clean clean-all help
+        lint format test clean clean-all help \
+        train export-gguf
 
 # ============================================================================
 # Variables
@@ -50,9 +51,14 @@ setup: ## Installe les dépendances Python
 
 install: setup ## Alias pour setup
 
-install-dev: ## Installe les dépendances de dev
+install-dev: ## Installe les dependances de dev
 	@echo "$(GREEN)Installation dev...$(NC)"
 	uv sync --extra dev
+	@echo "$(GREEN)Done$(NC)"
+
+install-train: ## Installe les dependances de training (mlx-lm)
+	@echo "$(GREEN)Installation mlx-lm pour fine-tuning...$(NC)"
+	uv sync --extra train
 	@echo "$(GREEN)Done$(NC)"
 
 install-llama: ## Clone et compile llama.cpp dans vendor/
@@ -224,7 +230,25 @@ validate-dataset: ## Valide le format du dataset
 	$(PYTHON) scripts/validate_dataset.py
 
 # ============================================================================
-# Qualité
+# Fine-tuning
+# ============================================================================
+
+train: ## Lance le fine-tuning LoRA (necessite make install-train)
+	@echo "$(GREEN)Fine-tuning LoRA...$(NC)"
+	$(PYTHON) scripts/train_lora.py
+
+train-prepare: ## Prepare le dataset pour training (sans lancer)
+	$(PYTHON) scripts/train_lora.py --prepare-only
+
+train-fuse: ## Fusionne les adaptateurs LoRA avec le modele
+	$(PYTHON) scripts/train_lora.py --fuse-only
+
+export-gguf: ## Exporte le modele fine-tune en GGUF
+	@echo "$(GREEN)Export GGUF...$(NC)"
+	$(PYTHON) scripts/export_gguf.py
+
+# ============================================================================
+# Qualite
 # ============================================================================
 
 lint: ## Vérifie le code
