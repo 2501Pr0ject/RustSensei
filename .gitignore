@@ -112,8 +112,5 @@ temp/
 *.temp
 
 # Private documentation (never commit)
-CLAUDE.md
-DECISIONS.md
-CHECKLIST.md
+docs/
 *.private.md
-docs/private/

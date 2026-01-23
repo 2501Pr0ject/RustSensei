@@ -6,6 +6,11 @@ Sources :
 - Rust Book (https://github.com/rust-lang/book)
 - Rust by Example (https://github.com/rust-lang/rust-by-example)
 - Rust Reference (https://github.com/rust-lang/reference)
+- Rust Cookbook (https://github.com/rust-lang-nursery/rust-cookbook)
+- Async Book (https://github.com/rust-lang/async-book)
+- Rustlings (https://github.com/rust-lang/rustlings)
+- Nomicon (https://github.com/rust-lang/nomicon)
+- Edition Guide (https://github.com/rust-lang/edition-guide)
 """
 
 import shutil
@@ -38,6 +43,36 @@ SOURCES = {
         "branch": "master",
         "src_dir": "src",
         "name": "Rust Reference",
+    },
+    "cookbook": {
+        "repo": "https://github.com/rust-lang-nursery/rust-cookbook.git",
+        "branch": "master",
+        "src_dir": "src",
+        "name": "Rust Cookbook",
+    },
+    "async-book": {
+        "repo": "https://github.com/rust-lang/async-book.git",
+        "branch": "master",
+        "src_dir": "src",
+        "name": "Async Book",
+    },
+    "rustlings": {
+        "repo": "https://github.com/rust-lang/rustlings.git",
+        "branch": "main",
+        "src_dir": "exercises",
+        "name": "Rustlings",
+    },
+    "nomicon": {
+        "repo": "https://github.com/rust-lang/nomicon.git",
+        "branch": "master",
+        "src_dir": "src",
+        "name": "Rustonomicon",
+    },
+    "edition-guide": {
+        "repo": "https://github.com/rust-lang/edition-guide.git",
+        "branch": "master",
+        "src_dir": "src",
+        "name": "Edition Guide",
     },
 }
 

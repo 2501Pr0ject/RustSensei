@@ -24,8 +24,9 @@ chunking:
   overlap_tokens: 50           # Overlap entre chunks pour continuite
   include_code_blocks: true    # Inclure les blocs de code dans les chunks
 
-# Sources de documents (M2 v0)
+# Sources de documents
 sources:
+  # Sources v1.0 (M2)
   - name: "Rust Book"
     id: "book"
     type: "markdown"
@@ -45,6 +46,42 @@ sources:
     type: "markdown"
     path: "rag/docs/reference/src"
     base_url: "https://doc.rust-lang.org/reference"
+    enabled: true
+
+  # Sources v2.0 (M10 - RAG etendu)
+  - name: "Rust Cookbook"
+    id: "cookbook"
+    type: "markdown"
+    path: "rag/docs/cookbook/src"
+    base_url: "https://rust-lang-nursery.github.io/rust-cookbook"
+    enabled: true
+
+  - name: "Async Book"
+    id: "async-book"
+    type: "markdown"
+    path: "rag/docs/async-book/src"
+    base_url: "https://rust-lang.github.io/async-book"
+    enabled: true
+
+  - name: "Rustlings"
+    id: "rustlings"
+    type: "rust"
+    path: "rag/docs/rustlings/exercises"
+    base_url: "https://github.com/rust-lang/rustlings/tree/main/exercises"
+    enabled: true
+
+  - name: "Rustonomicon"
+    id: "nomicon"
+    type: "markdown"
+    path: "rag/docs/nomicon/src"
+    base_url: "https://doc.rust-lang.org/nomicon"
+    enabled: true
+
+  - name: "Edition Guide"
+    id: "edition-guide"
+    type: "markdown"
+    path: "rag/docs/edition-guide/src"
+    base_url: "https://doc.rust-lang.org/edition-guide"
     enabled: true
 
 # Retrieval settings

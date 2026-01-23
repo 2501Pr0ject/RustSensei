@@ -22,7 +22,7 @@ make chat
 
 - **100% local** - Fonctionne sans connexion internet
 - **Inference rapide** - llama.cpp optimise Metal/MPS
-- **RAG** - Reponses enrichies avec la documentation Rust officielle
+- **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
 - **87% compilation** - Le code genere compile
 - **Francais** - Reponses pedagogiques en francais
 
@@ -97,7 +97,7 @@ RustSensei/
 
 - [ ] **M8** : Web UI (React + TypeScript + Tailwind)
 - [ ] **M9** : Dataset etendu (200+ exemples)
-- [ ] **M10** : Std docs dans RAG
+- [x] **M10** : RAG etendu (Cookbook, Async, Nomicon, Rustlings, Edition Guide)
 - [ ] **M11** : Docker
 - [ ] **M12** : Qualite (reranker, eval humaine)
 
@@ -150,11 +150,17 @@ Fonctionnalites :
 - Validation compilation automatique
 - Fine-tune LoRA v2
 
-### M10 — Std docs dans RAG
+### M10 — RAG etendu (termine)
 
-- Integration documentation std library
-- Meilleure couverture API Rust
-- Chunking adapte aux signatures de fonctions
+Sources ajoutees :
+| Source | Chunks | Description |
+|--------|--------|-------------|
+| Rust Cookbook | 200 | Recettes pratiques |
+| Async Book | 156 | Async/await |
+| Rustlings | 70 | Exercices |
+| Rustonomicon | 180 | Unsafe Rust |
+| Edition Guide | 175 | Editions Rust |
+| **Total** | **2,378** | +49% vs v1.0 |
 
 ### M11 — Docker
 

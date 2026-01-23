@@ -111,6 +111,72 @@ def parse_markdown_sections(content: str, file_path: str, source_id: str, source
     return sections
 
 
+def parse_rust_file(content: str, file_path: str, source_id: str, source_name: str) -> list[dict]:
+    """
+    Parse un fichier Rust et extrait les commentaires et le code comme documentation.
+
+    Utilise pour Rustlings - extrait les exercices avec leurs explications.
+    """
+    sections = []
+
+    # Extraire le nom de l'exercice du chemin
+    path_parts = Path(file_path).parts
+    exercise_name = Path(file_path).stem
+
+    # Trouver la categorie (dossier parent)
+    category = path_parts[-2] if len(path_parts) > 1 else "general"
+    heading = f"{category.replace('_', ' ').title()} > {exercise_name.replace('_', ' ').title()}"
+
+    # Extraire les commentaires de documentation (// ou ///)
+    doc_lines = []
+    code_lines = []
+    in_multiline_comment = False
+
+    for line in content.split('\n'):
+        stripped = line.strip()
+
+        # Commentaires multilignes
+        if '/*' in stripped:
+            in_multiline_comment = True
+        if '*/' in stripped:
+            in_multiline_comment = False
+            continue
+
+        if in_multiline_comment:
+            doc_lines.append(stripped.lstrip('* '))
+        elif stripped.startswith('///') or stripped.startswith('//!'):
+            # Doc comments
+            doc_lines.append(stripped[3:].strip())
+        elif stripped.startswith('//'):
+            # Regular comments (souvent des explications dans Rustlings)
+            comment = stripped[2:].strip()
+            if comment and not comment.startswith('TODO') and not comment.startswith('FIXME'):
+                doc_lines.append(comment)
+        else:
+            code_lines.append(line)
+
+    # Construire le contenu: commentaires + code
+    doc_text = '\n'.join(doc_lines).strip()
+    code_text = '\n'.join(code_lines).strip()
+
+    # Filtrer le code pour garder uniquement les parties pertinentes
+    if code_text:
+        # Garder le code comme exemple
+        formatted_content = ""
+        if doc_text:
+            formatted_content = f"{doc_text}\n\n"
+        formatted_content += f"```rust\n{code_text}\n```"
+
+        sections.append({
+            "content": formatted_content,
+            "heading": heading,
+            "level": 2,
+            "anchor": slugify(exercise_name),
+        })
+
+    return sections
+
+
 def chunk_section(section: dict, config: dict, source_id: str, source_name: str, file_path: str, base_url: str = "") -> list[Chunk]:
     """
     Découpe une section en chunks si nécessaire.
@@ -245,30 +311,38 @@ def process_source(source_config: dict, chunking_config: dict) -> list[Chunk]:
     source_id = source_config["id"]
     source_name = source_config["name"]
     base_url = source_config.get("base_url", "")
+    source_type = source_config.get("type", "markdown")
 
     if not source_path.exists():
         console.print(f"  [yellow]Source non trouvée: {source_path}[/yellow]")
         return []
 
     all_chunks = []
-    md_files = list(source_path.rglob("*.md"))
 
-    for md_file in track(md_files, description=f"  {source_name}"):
+    # Determiner les extensions selon le type
+    if source_type == "rust":
+        files = list(source_path.rglob("*.rs"))
+        parser = parse_rust_file
+    else:
+        files = list(source_path.rglob("*.md"))
+        parser = parse_markdown_sections
+
+    for file in track(files, description=f"  {source_name}"):
         try:
-            with open(md_file, encoding="utf-8") as f:
+            with open(file, encoding="utf-8") as f:
                 content = f.read()
         except Exception as e:
-            console.print(f"  [red]Erreur lecture {md_file}: {e}[/red]")
+            console.print(f"  [red]Erreur lecture {file}: {e}[/red]")
             continue
 
         # Skip les fichiers vides ou très courts
         if len(content) < 100:
             continue
 
-        rel_path = str(md_file.relative_to(source_path))
+        rel_path = str(file.relative_to(source_path))
 
-        # Parser les sections
-        sections = parse_markdown_sections(content, rel_path, source_id, source_name)
+        # Parser les sections selon le type
+        sections = parser(content, rel_path, source_id, source_name)
 
         # Chunker chaque section
         for section in sections:
