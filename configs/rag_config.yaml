@@ -93,7 +93,7 @@ retrieval:
 
 # Reranking (M7)
 rerank:
-  enabled: false  # Desactive temporairement pour tests
+  enabled: true  # Active pour ameliorer la pertinence
   model: "cross-encoder/ms-marco-MiniLM-L-6-v2"  # Cross-encoder rapide
   top_k: 5               # Nombre de resultats apres rerank
   batch_size: 16
