@@ -16,24 +16,26 @@ make install-all
 make chat
 ```
 
-**Prerequis**: Python 3.11+, [uv](https://github.com/astral-sh/uv), macOS Apple Silicon recommande
+**Prérequis** : Python 3.11+, [uv](https://github.com/astral-sh/uv), macOS Apple Silicon recommandé
 
-## Fonctionnalites
+## Fonctionnalités
 
-- **100% local** - Fonctionne sans connexion internet
-- **Inference rapide** - llama.cpp optimise Metal/MPS
+- **100% local** - Fonctionne sans connexion internet (après installation)
+- **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
-- **87% compilation** - Le code genere compile
-- **Francais** - Reponses pedagogiques en francais
+- **Compilation : 61%** - Évaluation auto sur 50 prompts
+- **Français** - Réponses pédagogiques en français (100%)
 
-## Metriques
+## Métriques
 
-| Metrique | Valeur |
+| Métrique | Valeur |
 |----------|--------|
-| Score global | 3.07/5 |
-| Langue FR | 95% |
-| Compilation | 87% |
-| RAG boost | +10% |
+| Score global | 3.10/5 |
+| Langue FR | 100% |
+| Compilation | 61% |
+| Dataset | 221 exemples |
+
+*Évaluation : 50 prompts, 5 critères, RAG activé*
 
 ## Utilisation
 
@@ -44,10 +46,10 @@ make chat
 # Chat avec RAG (documentation Rust)
 make chat-rag
 
-# Evaluation
+# Évaluation
 make eval
 
-# Verification compilation
+# Vérification compilation
 make compile-check
 ```
 
@@ -89,30 +91,30 @@ RustSensei/
 
 ## Roadmap
 
-### v1.0 (termine)
+### v1.0 (terminé)
 
 - [x] **M0-M7** : CLI + RAG + Fine-tune + Packaging
 
-### v2.0 (planifie)
+### v2.0 (planifié)
 
 - [ ] **M8** : Web UI (React + TypeScript + Tailwind)
-- [ ] **M9** : Dataset etendu (200+ exemples)
-- [x] **M10** : RAG etendu (Cookbook, Async, Nomicon, Rustlings, Edition Guide)
+- [x] **M9** : Dataset étendu (221 exemples, LoRA en pause)
+- [x] **M10** : RAG étendu (Cookbook, Async, Nomicon, Rustlings, Edition Guide)
 - [ ] **M11** : Docker
-- [ ] **M12** : Qualite (reranker, eval humaine)
+- [ ] **M12** : Qualité (reranker, éval humaine)
 
 Details : voir [Roadmap v2.0](#roadmap-v20)
 
-## Installation detaillee
+## Installation détaillée
 
 ```bash
-# Etape par etape
-make setup           # Dependances Python
+# Étape par étape
+make setup           # Dépendances Python
 make install-llama   # Compiler llama.cpp
-make download-model  # Telecharger le modele GGUF
+make download-model  # Télécharger le modèle GGUF
 make build-index     # Construire l'index RAG
 
-# Verifier
+# Vérifier
 make check
 ```
 
@@ -136,23 +138,37 @@ MIT License
 | Backend | FastAPI |
 | Build | Vite |
 
-Fonctionnalites :
+Fonctionnalités :
 - Chat interface avec historique
 - Toggle RAG on/off
 - Citations avec liens vers docs
 - Syntax highlighting Rust
 - Mode sombre
 
-### M9 — Dataset etendu
+### M9 — Dataset étendu (terminé)
 
-- 200+ exemples (vs 49 actuels)
-- Focus lifetimes/borrowing (categories faibles)
-- Validation compilation automatique
-- Fine-tune LoRA v2
+**Résultats :**
+| Métrique | Avant | Après |
+|----------|-------|-------|
+| Exemples | 49 | 221 (+351%) |
+| Lifetimes | 3 | 34 |
+| Borrowing | 3 | 26 |
+| Async | 1 | 21 |
 
-### M10 — RAG etendu (termine)
+**Ce qui a fonctionné :**
+- Extension du dataset avec focus sur les catégories faibles
+- Prompt simplifié pour 100% français
+- Validation compilation automatique des exemples
 
-Sources ajoutees :
+**Ce qui n'a pas fonctionné :**
+- Fine-tuning LoRA sur MacBook M2 16GB : crashes répétitifs (Metal GPU timeout)
+- Les adaptateurs LoRA amélioraient certains topics (+67% lifetimes) mais en dégradaient d'autres (catastrophic forgetting)
+
+**Décision :** Utiliser le modèle baseline (Qwen2.5-Coder-1.5B) sans LoRA pour garantir la stabilité. Le dataset étendu reste disponible pour un futur fine-tuning sur hardware plus robuste.
+
+### M10 — RAG étendu (terminé)
+
+Sources ajoutées :
 | Source | Chunks | Description |
 |--------|--------|-------------|
 | Rust Cookbook | 200 | Recettes pratiques |
@@ -169,9 +185,9 @@ Sources ajoutees :
 - Installation one-click
 - Support GPU optionnel
 
-### M12 — Qualite
+### M12 — Qualité
 
 - Reranker multilingue (mmarco)
-- Evaluation humaine
+- Évaluation humaine
 - Support multi-fichiers (projets Cargo)
-- Modele 7B (optionnel)
+- Modèle 7B (optionnel)
