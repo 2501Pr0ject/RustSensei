@@ -9746,11 +9746,546 @@ fn main() {
 - `&mut self` pour modifier"""},
 ]
 
-# Combiner tous les exemples - VERSION FINALE 200+
+# ============================================================================
+# EXEMPLES CORRECTIFS M9.1 - Focus: Compilation + Traits + Lifetimes + FR
+# ============================================================================
+
+CORRECTIVE_COMPILATION = [
+    {"topic": "compilation", "difficulty": "debutant", "user": "Donne un exemple compilable minimal avec Result et l'operateur ?", "assistant": """## TL;DR
+Voici un exemple complet et compilable utilisant `Result` et `?`.
+
+## Solution
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+
+fn lire_fichier(chemin: &str) -> Result<String, io::Error> {
+    let mut fichier = File::open(chemin)?;
+    let mut contenu = String::new();
+    fichier.read_to_string(&mut contenu)?;
+    Ok(contenu)
+}
+
+fn main() {
+    match lire_fichier("test.txt") {
+        Ok(c) => println!("Contenu: {}", c),
+        Err(e) => println!("Erreur: {}", e),
+    }
+}
+```
+
+## Explication
+- `?` propage l'erreur automatiquement si `Result` est `Err`
+- La fonction doit retourner un `Result` compatible
+
+## A retenir
+- `?` = raccourci pour `match` + `return Err`
+- Imports necessaires: `std::fs::File`, `std::io`"""},
+    {"topic": "compilation", "difficulty": "debutant", "user": "Corrige ce code (mut manquant):\n```rust\nfn main() {\n    let v = vec![1, 2, 3];\n    v.push(4);\n}\n```", "assistant": """## TL;DR
+Il manque `mut` pour modifier le vecteur.
+
+## Solution
+```rust
+fn main() {
+    let mut v = vec![1, 2, 3];
+    v.push(4);
+    println!("{:?}", v);
+}
+```
+
+## Explication
+En Rust, les variables sont immutables par defaut. `mut` permet la modification.
+
+## A retenir
+- `let x` = immutable
+- `let mut x` = mutable"""},
+    {"topic": "compilation", "difficulty": "intermediaire", "user": "Ecris un exemple compilable de closure avec iter().map()", "assistant": """## TL;DR
+Voici un exemple complet utilisant une closure avec `map()`.
+
+## Solution
+```rust
+fn main() {
+    let nombres = vec![1, 2, 3, 4, 5];
+    let doubles: Vec<i32> = nombres.iter().map(|x| x * 2).collect();
+    println!("{:?}", doubles);
+}
+```
+
+## Explication
+- `iter()` cree un iterateur
+- `map(|x| ...)` applique la closure
+- `collect()` transforme en collection
+
+## A retenir
+- Closure: `|params| expression`
+- `collect()` necessite souvent une annotation de type"""},
+    {"topic": "compilation", "difficulty": "debutant", "user": "Montre un match sur enum avec payload qui compile", "assistant": """## TL;DR
+Voici un exemple complet de `match` sur enum avec donnees.
+
+## Solution
+```rust
+enum Message {
+    Quit,
+    Write(String),
+    Move { x: i32, y: i32 },
+}
+
+fn traiter(msg: Message) {
+    match msg {
+        Message::Quit => println!("Quitter"),
+        Message::Write(texte) => println!("Ecrire: {}", texte),
+        Message::Move { x, y } => println!("Deplacer: ({}, {})", x, y),
+    }
+}
+
+fn main() {
+    traiter(Message::Write(String::from("Bonjour")));
+}
+```
+
+## A retenir
+- Enum = type somme
+- `match` doit couvrir tous les variants"""},
+    {"topic": "compilation", "difficulty": "intermediaire", "user": "Ajoute les imports manquants:\n```rust\nfn main() {\n    let mut map = HashMap::new();\n    map.insert(\"cle\", 42);\n}\n```", "assistant": """## TL;DR
+Il faut importer `HashMap` depuis `std::collections`.
+
+## Solution
+```rust
+use std::collections::HashMap;
+
+fn main() {
+    let mut map = HashMap::new();
+    map.insert("cle", 42);
+    println!("{:?}", map);
+}
+```
+
+## Explication
+`HashMap` n'est pas dans le prelude. Import necessaire.
+
+## A retenir
+- Prelude = types automatiquement disponibles
+- `HashMap`, `HashSet` necessitent `use std::collections::...`"""},
+    {"topic": "compilation", "difficulty": "avance", "user": "Pourquoi ce code ne compile pas ?\n```rust\nfn main() {\n    let s = String::from(\"hello\");\n    let len = calcul_len(s);\n    println!(\"{} a {} chars\", s, len);\n}\nfn calcul_len(s: String) -> usize { s.len() }\n```", "assistant": """## TL;DR
+`s` est deplace (move) dans `calcul_len`, donc plus utilisable apres.
+
+## Solution
+```rust
+fn main() {
+    let s = String::from("hello");
+    let len = calcul_len(&s);
+    println!("{} a {} chars", s, len);
+}
+
+fn calcul_len(s: &str) -> usize {
+    s.len()
+}
+```
+
+## Explication
+- Passer par valeur = move
+- Reference = emprunt sans transfert
+
+## A retenir
+- Preferer `&str` a `&String`
+- Move invalide l'original"""},
+    {"topic": "compilation", "difficulty": "debutant", "user": "Donne un exemple compilable de struct avec derive Debug", "assistant": """## TL;DR
+Voici une struct avec `#[derive(Debug)]`.
+
+## Solution
+```rust
+#[derive(Debug)]
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+fn main() {
+    let p = Point { x: 3.0, y: 4.0 };
+    println!("{:?}", p);
+}
+```
+
+## A retenir
+- `derive` genere du code automatiquement
+- Sans `Debug`, impossible d'utiliser `{:?}`"""},
+    {"topic": "compilation", "difficulty": "intermediaire", "user": "Ce code dit 'type annotations needed'. Corrige:\n```rust\nfn main() {\n    let v = Vec::new();\n}\n```", "assistant": """## TL;DR
+Rust ne peut pas inferer le type des elements.
+
+## Solution
+```rust
+fn main() {
+    let v: Vec<i32> = Vec::new();
+    // Ou avec turbofish:
+    let v2 = Vec::<String>::new();
+    println!("{:?} {:?}", v, v2);
+}
+```
+
+## Explication
+Vecteur vide = type ambigu. Trois solutions: annotation, turbofish, ou usage.
+
+## A retenir
+- `::<T>` = turbofish pour specifier le type"""},
+]
+
+CORRECTIVE_TRAITS = [
+    {"topic": "traits", "difficulty": "intermediaire", "user": "Explique trait vs impl Trait vs dyn Trait", "assistant": """## TL;DR
+`trait` = interface, `impl Trait` = statique, `dyn Trait` = dynamique.
+
+## Solution
+```rust
+trait Animal {
+    fn cri(&self) -> &str;
+}
+
+struct Chien;
+impl Animal for Chien {
+    fn cri(&self) -> &str { "Wouf!" }
+}
+
+// impl Trait (statique)
+fn faire_crier(animal: impl Animal) {
+    println!("{}", animal.cri());
+}
+
+// dyn Trait (dynamique)
+fn faire_crier_dyn(animal: &dyn Animal) {
+    println!("{}", animal.cri());
+}
+
+fn main() {
+    faire_crier(Chien);
+    faire_crier_dyn(&Chien);
+}
+```
+
+## A retenir
+- `impl Trait` = zero-cost, monomorphisation
+- `dyn Trait` = dispatch dynamique via vtable"""},
+    {"topic": "traits", "difficulty": "intermediaire", "user": "Ecris un trait ToCsv avec impl pour struct User", "assistant": """## TL;DR
+Voici un trait personnalise avec implementation.
+
+## Solution
+```rust
+trait ToCsv {
+    fn to_csv(&self) -> String;
+}
+
+struct User {
+    id: u32,
+    nom: String,
+}
+
+impl ToCsv for User {
+    fn to_csv(&self) -> String {
+        format!("{},{}", self.id, self.nom)
+    }
+}
+
+fn main() {
+    let user = User { id: 1, nom: String::from("Alice") };
+    println!("{}", user.to_csv());
+}
+```
+
+## A retenir
+- Trait = contrat (methodes requises)
+- `impl Trait for Type` = implementation"""},
+    {"topic": "traits", "difficulty": "avance", "user": "Explique les trait bounds avec where clause", "assistant": """## TL;DR
+Les trait bounds contraignent les types generiques.
+
+## Solution
+```rust
+use std::fmt::{Debug, Display};
+
+fn afficher<T>(val: T)
+where
+    T: Display + Debug,
+{
+    println!("Display: {}, Debug: {:?}", val, val);
+}
+
+fn main() {
+    afficher(42);
+    afficher("hello");
+}
+```
+
+## Explication
+- `T: Trait1 + Trait2` = T doit implementer les deux
+- `where` plus lisible pour cas complexes
+
+## A retenir
+- `+` combine plusieurs bounds
+- Sans bound, T est opaque"""},
+    {"topic": "traits", "difficulty": "avance", "user": "Comment ecrire un trait avec un type associe ?", "assistant": """## TL;DR
+Les types associes evitent de repeter les generiques.
+
+## Solution
+```rust
+trait Iterateur {
+    type Item;
+    fn prochain(&mut self) -> Option<Self::Item>;
+}
+
+struct Compteur { valeur: u32, max: u32 }
+
+impl Iterateur for Compteur {
+    type Item = u32;
+    fn prochain(&mut self) -> Option<Self::Item> {
+        if self.valeur < self.max {
+            self.valeur += 1;
+            Some(self.valeur)
+        } else { None }
+    }
+}
+
+fn main() {
+    let mut c = Compteur { valeur: 0, max: 3 };
+    while let Some(n) = c.prochain() { println!("{}", n); }
+}
+```
+
+## A retenir
+- Type associe = definit dans `impl`
+- Exemple: `Iterator` a `type Item`"""},
+    {"topic": "traits", "difficulty": "intermediaire", "user": "Montre un trait avec implementation par defaut", "assistant": """## TL;DR
+Les traits peuvent fournir des implementations par defaut.
+
+## Solution
+```rust
+trait Saluer {
+    fn nom(&self) -> &str;
+    fn saluer(&self) {
+        println!("Bonjour, {}!", self.nom());
+    }
+}
+
+struct Personne { prenom: String }
+
+impl Saluer for Personne {
+    fn nom(&self) -> &str { &self.prenom }
+}
+
+fn main() {
+    let p = Personne { prenom: String::from("Alice") };
+    p.saluer();
+}
+```
+
+## A retenir
+- Methodes avec corps = defaut
+- On peut override si besoin"""},
+    {"topic": "traits", "difficulty": "intermediaire", "user": "Difference entre Clone et Copy ?", "assistant": """## TL;DR
+`Copy` = copie implicite bit-a-bit, `Clone` = copie explicite.
+
+## Solution
+```rust
+#[derive(Copy, Clone, Debug)]
+struct Point { x: i32, y: i32 }
+
+#[derive(Clone, Debug)]
+struct Personne { nom: String }
+
+fn main() {
+    let p1 = Point { x: 1, y: 2 };
+    let p2 = p1;  // Copie implicite
+    println!("{:?} {:?}", p1, p2);
+
+    let a = Personne { nom: String::from("Alice") };
+    let b = a.clone();  // Clone explicite
+    println!("{:?}", b);
+}
+```
+
+## A retenir
+- Copy = types simples stack-only
+- Clone = types heap, `.clone()` explicite"""},
+]
+
+CORRECTIVE_LIFETIMES = [
+    {"topic": "lifetimes", "difficulty": "intermediaire", "user": "Pourquoi cette fonction necessite un lifetime ?\n```rust\nfn longest(a: &str, b: &str) -> &str {\n    if a.len() > b.len() { a } else { b }\n}\n```", "assistant": """## TL;DR
+Le retour est une reference, Rust doit savoir laquelle.
+
+## Solution
+```rust
+fn longest<'a>(a: &'a str, b: &'a str) -> &'a str {
+    if a.len() > b.len() { a } else { b }
+}
+
+fn main() {
+    let s1 = String::from("court");
+    let s2 = String::from("plus long");
+    println!("{}", longest(&s1, &s2));
+}
+```
+
+## Explication
+`'a` dit: le retour vit aussi longtemps que le plus court des deux.
+
+## A retenir
+- References en retour = lifetime requis
+- `'a` lie entrees et sortie"""},
+    {"topic": "lifetimes", "difficulty": "intermediaire", "user": "Explique l'elision des lifetimes", "assistant": """## TL;DR
+L'elision permet d'omettre les lifetimes dans les cas simples.
+
+## Solution
+```rust
+// Avec elision
+fn premier_mot(s: &str) -> &str {
+    s.split_whitespace().next().unwrap_or("")
+}
+
+// Equivalent explicite
+fn premier_mot_explicite<'a>(s: &'a str) -> &'a str {
+    s.split_whitespace().next().unwrap_or("")
+}
+
+fn main() {
+    println!("{}", premier_mot("Bonjour monde"));
+}
+```
+
+## Regles d'elision
+1. Chaque ref entree recoit son lifetime
+2. Une seule ref entree -> retour prend ce lifetime
+3. `&self` -> retour prend lifetime de self
+
+## A retenir
+- Elision = sucre syntaxique
+- Fonctionne pour cas simples"""},
+    {"topic": "lifetimes", "difficulty": "avance", "user": "Lifetimes avec structs qui contiennent des references ?", "assistant": """## TL;DR
+Une struct avec references doit declarer ses lifetimes.
+
+## Solution
+```rust
+struct Extrait<'a> {
+    texte: &'a str,
+}
+
+impl<'a> Extrait<'a> {
+    fn new(source: &'a str) -> Self {
+        Extrait { texte: &source[0..5] }
+    }
+}
+
+fn main() {
+    let source = String::from("Hello World");
+    let ext = Extrait::new(&source);
+    println!("{}", ext.texte);
+}
+```
+
+## A retenir
+- Struct avec `&` = lifetime obligatoire
+- La struct est liee a la duree de ses emprunts"""},
+    {"topic": "lifetimes", "difficulty": "avance", "user": "Difference entre 'static et lifetime generique ?", "assistant": """## TL;DR
+`'static` = vit tout le programme, `'a` = duree limitee.
+
+## Solution
+```rust
+fn retourne_static() -> &'static str {
+    "Litteraux sont 'static"
+}
+
+fn retourne_generique<'a>(s: &'a str) -> &'a str {
+    &s[0..3]
+}
+
+fn main() {
+    let stat = retourne_static();
+    println!("{}", stat);
+
+    let local = String::from("Hello");
+    let gen = retourne_generique(&local);
+    println!("{}", gen);
+}
+```
+
+## A retenir
+- String literals = `'static`
+- Variables locales = pas `'static`"""},
+    {"topic": "lifetimes", "difficulty": "intermediaire", "user": "Corrige: 'borrowed value does not live long enough'\n```rust\nfn main() {\n    let r;\n    { let x = 5; r = &x; }\n    println!(\"{}\", r);\n}\n```", "assistant": """## TL;DR
+`x` est detruit avant que `r` ne soit utilise.
+
+## Solution
+```rust
+fn main() {
+    let x = 5;
+    let r = &x;
+    println!("{}", r);
+}
+```
+
+## Explication
+Une reference ne peut pas survivre a la valeur referencee.
+
+## A retenir
+- La valeur doit vivre plus longtemps que ses emprunts
+- Solution: meme scope, copie, ou move"""},
+]
+
+CORRECTIVE_FR = [
+    {"topic": "general", "difficulty": "debutant", "user": "What is ownership in Rust?", "assistant": """## TL;DR
+L'ownership (propriete) est le systeme de Rust pour gerer la memoire sans garbage collector.
+
+## Probleme
+Comment gerer la memoire de facon sure sans GC ni allocation manuelle ?
+
+## Solution
+Trois regles simples:
+1. Chaque valeur a un proprietaire unique
+2. Un seul proprietaire a la fois
+3. Valeur liberee quand proprietaire sort du scope
+
+```rust
+fn main() {
+    let s1 = String::from("bonjour");
+    let s2 = s1;  // Move
+    // println!("{}", s1);  // Erreur
+    println!("{}", s2);
+}
+```
+
+## A retenir
+- Move invalide l'original
+- Clone pour dupliquer
+- Reference pour emprunter"""},
+    {"topic": "general", "difficulty": "intermediaire", "user": "How do I handle errors with Result?", "assistant": """## TL;DR
+`Result<T, E>` represente soit un succes (`Ok(T)`) soit une erreur (`Err(E)`).
+
+## Solution
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+
+fn lire(chemin: &str) -> Result<String, io::Error> {
+    let mut f = File::open(chemin)?;
+    let mut s = String::new();
+    f.read_to_string(&mut s)?;
+    Ok(s)
+}
+
+fn main() {
+    match lire("config.txt") {
+        Ok(c) => println!("{}", c),
+        Err(e) => println!("Erreur: {}", e),
+    }
+}
+```
+
+## A retenir
+- `?` propage l'erreur
+- Jamais `.unwrap()` en production
+- `Result` force a gerer les erreurs"""},
+]
+
+# Combiner tous les exemples - VERSION FINALE 200+ avec correctifs
 ALL_ADDITIONAL_EXAMPLES = {
     "debug": (
         ADDITIONAL_DEBUG_EXAMPLES + MORE_DEBUG_EXAMPLES + FINAL_DEBUG_EXAMPLES +
-        MORE_DEBUG
+        MORE_DEBUG + CORRECTIVE_COMPILATION
     ),
     "concepts": (
         ADDITIONAL_CONCEPTS_EXAMPLES + MORE_CONCEPTS_EXAMPLES + FINAL_CONCEPTS_EXAMPLES +
@@ -9763,7 +10298,8 @@ ALL_ADDITIONAL_EXAMPLES = {
         EXTRA_MODULES + EXTRA_COLLECTIONS + EXTRA_TESTING + EXTRA_UNSAFE +
         FINAL_LIFETIMES + FINAL_BORROWING + FINAL_ASYNC + FINAL_TRAITS +
         FINAL_GENERICS + FINAL_PATTERNS + FINAL_ERRORS + FINAL_ITERATORS +
-        LAST_BATCH + EXTRA_MISC
+        LAST_BATCH + EXTRA_MISC +
+        CORRECTIVE_TRAITS + CORRECTIVE_LIFETIMES + CORRECTIVE_FR
     ),
     "exercises": (
         ADDITIONAL_EXERCISES_EXAMPLES + MORE_EXERCISES_EXAMPLES + FINAL_EXERCISES_EXAMPLES +
