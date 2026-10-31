@@ -65,18 +65,18 @@ export function App() {
 
   return (
     <div
-      className={`flex min-h-screen flex-col bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${
+      className={`flex min-h-screen flex-col bg-[#020603] font-mono text-green-400 dark:bg-[#030a06] ${
         dark ? "dark" : ""
       }`}
     >
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-2 p-2">
-        <header className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">RustSensei</h1>
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-green-400/20 pb-2">
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-green-400">RustSensei</h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setDark((d) => !d)}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="rounded-lg border border-green-400/40 px-3 py-1.5 text-sm font-medium text-green-300 hover:bg-green-400/10"
             >
               {dark ? "Clair" : "Sombre"}
             </button>
@@ -85,8 +85,8 @@ export function App() {
               onClick={() => setUseRag((r) => !r)}
               className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
                 useRag
-                  ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
-                  : "border-zinc-300 text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  ? "border-green-400 bg-green-400 text-black"
+                  : "border-green-400/40 text-green-300 hover:bg-green-400/10"
               }`}
             >
               RAG : {useRag ? "ON" : "OFF"}
@@ -94,7 +94,7 @@ export function App() {
             <button
               type="button"
               onClick={clearChat}
-              className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              className="rounded-lg border border-green-400/40 px-3 py-1.5 text-sm font-medium text-green-300 hover:bg-green-400/10"
             >
               Effacer
             </button>
@@ -105,10 +105,10 @@ export function App() {
           {messages.map((m, i) => (
             <div
               key={i}
-              className={`rounded-2xl px-4 py-3 ${
+              className={`self-end rounded-2xl px-4 py-3 rounded-br-md border bg-green-400/10 text-green-300 ${
                 m.role === "user"
-                  ? "self-end rounded-br-md bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
-                  : "self-start rounded-bl-md bg-zinc-100 dark:bg-zinc-800"
+                  ? ""
+                  : "self-start rounded-bl-sm border-green-400/30 bg-transparent text-green-400"
               }`}
             >
               {m.role === "assistant" ? (
@@ -119,14 +119,12 @@ export function App() {
                 <p className="whitespace-pre-wrap text-sm">{m.content}</p>
               )}
               {m.citations && m.citations.length > 0 ? (
-                <div className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  Sources : {m.citations.join(", ")}
-                </div>
+                <div className="mt-2 text-xs text-green-500/70">Sources : {m.citations.join(", ")}</div>
               ) : null}
             </div>
           ))}
           {showThinking ? (
-            <div className="self-start rounded-2xl rounded-bl-md bg-zinc-100 px-4 py-3 text-sm text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
+            <div className="self-start rounded-2xl rounded-bl-sm border border-green-400/30 px-4 py-3 text-green-500">
               <span className="animate-pulse">RustSensei réfléchit...</span>
             </div>
           ) : null}
@@ -144,17 +142,17 @@ export function App() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Posez votre question sur Rust..."
-            className="min-w-0 flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder-zinc-500"
+            className="min-w-0 flex-1 rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-sm text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-xl bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 dark:bg-zinc-100 dark:text-zinc-900"
+            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-sm font-medium text-black disabled:opacity-40"
           >
             Envoyer
           </button>
         </form>
-        {error ? <p className="text-sm text-red-600 dark:text-red-400">{error}</p> : null}
+        {error ? <p className="text-sm text-red-400">{error}</p> : null}
       </div>
     </div>
   );
