@@ -15,6 +15,7 @@ from fastapi.exceptions import FastAPIError
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from .cache import response_cache
 from .chat import build_prompt, call_llama_cli, get_rag_retriever, load_config
 from .rag import check_rag_available
 
@@ -147,7 +148,7 @@ async def _sleep(seconds: float) -> None:
 
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    """Repond a une question en utilisant le pipeline RAG + llama.cpp."""
+    """Repond a une question en utilisant le pipeline RAG (avec cache) + llama.cpp."""
     config = load_config()
 
     context = None
@@ -163,14 +164,28 @@ def chat(request: ChatRequest) -> ChatResponse:
     if use_rag:
         retriever = get_rag_retriever()
 
-    if retriever:
-        chunks = retriever.retrieve(request.message)
-        if chunks:
-            context = retriever.format_context(chunks)
-            citations = retriever.get_citations(chunks)
+    response = None
 
-    full_prompt = build_prompt(request.message, config, context=context)
-    response = call_llama_cli(full_prompt, config)
+    if retriever:
+        cached = response_cache.get(request.message)
+        if cached is not None:
+            response = cached["response"]
+            citations = cached["citations"]
+        else:
+            chunks = retriever.retrieve(request.message)
+            if chunks:
+                context = retriever.format_context(chunks)
+                citations = retriever.get_citations(chunks)
+
+            response = call_llama_cli(
+                build_prompt(request.message, config, context=context), config
+            )
+            response_cache.set(request.message, response, citations)
+
+    if response is None:
+        response = call_llama_cli(
+            build_prompt(request.message, config, context=context), config
+        )
 
     return ChatResponse(
         response=response,
@@ -181,10 +196,9 @@ def chat(request: ChatRequest) -> ChatResponse:
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """Genere une reponse en streaming via llama-server (SSE -> tokens)."""
+    """Genere une reponse en streaming via llama-server (avec cache) + SSE."""
     config = load_config()
 
-    context = None
     use_rag = request.use_rag
     retriever = None
     if use_rag:
@@ -195,18 +209,30 @@ async def chat_stream(request: ChatRequest):
     if use_rag:
         retriever = get_rag_retriever()
 
-    if retriever:
-        chunks = retriever.retrieve(request.message)
-        if chunks:
-            context = retriever.format_context(chunks)
-
-    full_prompt = build_prompt(request.message, config, context=context)
-
     async def token_stream():
+        full_response = ""
+
+        if retriever is not None:
+            cached = response_cache.get(request.message)
+            if cached is not None:
+                yield cached["response"]
+                return
+
+        context = None
+        if retriever:
+            chunks = retriever.retrieve(request.message)
+            if chunks:
+                context = retriever.format_context(chunks)
+
+        full_prompt = build_prompt(request.message, config, context=context)
         async for token in _stream_llama_response(
             config, full_prompt, config["prompt"]["system"]
         ):
+            full_response += token
             yield token
+
+        if retriever is not None and full_response:
+            response_cache.set(request.message, full_response)
 
     return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
 

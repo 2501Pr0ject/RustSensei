@@ -109,3 +109,7 @@ augmentation:
 
   max_context_tokens: 1500
   citation_format: "[{source} — {heading}]"
+
+# Cache (CAG - Cache Augmented Generation)
+cache:
+  ttl_seconds: 604800  # 7 jours

@@ -1,5 +1,7 @@
 """Tests unitaires de l'API FastAPI (M8)."""
 
+from unittest.mock import Mock
+
 from fastapi.testclient import TestClient
 
 from app.api import app
@@ -25,3 +27,77 @@ def test_chat_without_rag(monkeypatch):
     data = response.json()
     assert data["response"] == "reponse mockee"
     assert data["rag_used"] is False
+
+
+def test_chat_returns_cached_response(monkeypatch):
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: object())
+
+    cache = Mock()
+    cache.get.return_value = {
+        "response": "reponse en cache",
+        "citations": ["[Rust Book — Ownership]"],
+        "timestamp": 0.0,
+    }
+    monkeypatch.setattr("app.api.response_cache", cache)
+    monkeypatch.setattr(
+        "app.api.call_llama_cli", lambda prompt, config: "NE DOIT PAS ETRE APPELE"
+    )
+
+    response = client.post(
+        "/chat", json={"message": "Question deja posee", "use_rag": True}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["response"] == "reponse en cache"
+    assert data["citations"] == ["[Rust Book — Ownership]"]
+    assert data["rag_used"] is True
+    cache.set.assert_not_called()
+
+
+def test_chat_stores_generated_response(monkeypatch):
+    class StubRetriever:
+        def retrieve(self, query):
+            return []
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", StubRetriever)
+
+    cache = Mock()
+    cache.get.return_value = None
+    monkeypatch.setattr("app.api.response_cache", cache)
+    monkeypatch.setattr(
+        "app.api.call_llama_cli", lambda prompt, config: "reponse generee"
+    )
+
+    response = client.post(
+        "/chat", json={"message": "Nouvelle question", "use_rag": True}
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["response"] == "reponse generee"
+    assert data["citations"] == []
+    assert data["rag_used"] is True
+    cache.set.assert_called_once()
+
+
+def test_stream_returns_cached_response(monkeypatch):
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: object())
+
+    cache = Mock()
+    cache.get.return_value = {
+        "response": "reponse stream cachee",
+        "citations": [],
+        "timestamp": 0.0,
+    }
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    response = client.post(
+        "/chat/stream", json={"message": "Question deja posee", "use_rag": True}
+    )
+
+    assert response.status_code == 200
+    assert response.text == "reponse stream cachee"
