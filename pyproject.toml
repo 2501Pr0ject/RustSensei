@@ -20,6 +20,9 @@ dependencies = [
     "sentence-transformers>=3.0.0",
     # Data
     "requests>=2.31.0",
+    "fastapi>=0.162.0",
+    "uvicorn>=0.54.0",
+    "httpx>=0.28.1",
 ]
 
 [project.optional-dependencies]

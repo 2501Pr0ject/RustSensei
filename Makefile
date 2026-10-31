@@ -1,7 +1,7 @@
 .PHONY: setup install install-dev install-train install-llama download-model \
-        chat eval eval-smoke build-index check compile-check \
+        chat api eval eval-smoke build-index check compile-check \
         lint format test clean clean-all help \
-        train export-gguf
+        train export-gguf web
 
 # ============================================================================
 # Variables
@@ -156,6 +156,20 @@ chat: ## Lance le chat interactif
 
 chat-rag: ## Lance le chat avec RAG
 	$(PYTHON) -m app.chat --rag
+
+# ============================================================================
+# API
+# ============================================================================
+
+api: ## Lance le serveur API FastAPI
+	$(PYTHON) -m app.api
+
+# ============================================================================
+# Web UI
+# ============================================================================
+
+web: ## Lance le serveur frontend Vite (proxy /chat -> API)
+	cd frontend && npm run dev
 
 # ============================================================================
 # Évaluation
