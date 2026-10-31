@@ -76,14 +76,15 @@ export function App() {
             <button
               type="button"
               onClick={() => setDark((d) => !d)}
-              className="rounded-lg border border-green-400/40 px-3 py-1.5 text-sm font-medium text-green-300 hover:bg-green-400/10"
+              className="rounded-lg border border-green-400/40 px-3 py-2.5 text-sm font-medium text-green-300 hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
             >
               {dark ? "Clair" : "Sombre"}
             </button>
             <button
               type="button"
               onClick={() => setUseRag((r) => !r)}
-              className={`rounded-lg border px-3 py-1.5 text-sm font-medium ${
+              aria-pressed={useRag}
+              className={`rounded-lg border px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60 ${
                 useRag
                   ? "border-green-400 bg-green-400 text-black"
                   : "border-green-400/40 text-green-300 hover:bg-green-400/10"
@@ -94,14 +95,14 @@ export function App() {
             <button
               type="button"
               onClick={clearChat}
-              className="rounded-lg border border-green-400/40 px-3 py-1.5 text-sm font-medium text-green-300 hover:bg-green-400/10"
+              className="rounded-lg border border-green-400/40 px-3 py-2.5 text-sm font-medium text-green-300 hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
             >
               Effacer
             </button>
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
+        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1" aria-live="polite">
           {messages.map((m, i) => (
             <div
               key={i}
@@ -147,7 +148,7 @@ export function App() {
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-base font-medium text-black disabled:opacity-40"
+            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-base font-medium text-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
           >
             Envoyer
           </button>
