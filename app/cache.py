@@ -3,22 +3,33 @@ Cache pour RustSensei (CAG - Cache Augmented Generation).
 
 Mémorise les réponses générées pour éviter de relancer le modèle
 sur des questions déjà traitées (cache de réponse).
+
+Le cache peut être persisté sur disque pour survivre aux redémarrages.
 """
 
+import json
 import time
+from pathlib import Path
 from typing import Optional
 
-from .config import get_rag_config
+from .config import PROJECT_ROOT, get_rag_config
 
 DEFAULT_TTL_SECONDS = 7 * 24 * 3600  # 7 jours
+DEFAULT_CACHE_PATH = "data/cache.json"
 
 
 class ResponseCache:
-    """Cache simple en mémoire des réponses par question normalisée."""
+    """Cache des réponses par question normalisée (mémoire + disque optionnel)."""
 
-    def __init__(self, ttl_seconds: float = DEFAULT_TTL_SECONDS):
+    def __init__(
+        self,
+        ttl_seconds: float = DEFAULT_TTL_SECONDS,
+        path: Optional[Path] = None,
+    ):
         self.ttl_seconds = ttl_seconds
+        self.path = path
         self._entries: dict[str, dict] = {}
+        self._load()
 
     @staticmethod
     def normalize_key(query: str) -> str:
@@ -45,9 +56,10 @@ class ResponseCache:
             return None
 
         timestamp = entry["timestamp"]
-        current = now if now is not None else time.monotonic()
+        current = now if now is not None else time.time()
         if current - timestamp > self.ttl_seconds:
             del self._entries[key]
+            self._save()
             return None
 
         return entry
@@ -67,12 +79,38 @@ class ResponseCache:
         self._entries[key] = {
             "response": response,
             "citations": citations or [],
-            "timestamp": timestamp if timestamp is not None else time.monotonic(),
+            "timestamp": timestamp if timestamp is not None else time.time(),
         }
+        self._save()
 
     def clear(self) -> None:
         """Vide le cache."""
         self._entries.clear()
+        self._save()
+
+    def _load(self) -> None:
+        """Charge le cache depuis le disque (silencieux si absent ou corrompu)."""
+        if self.path is None or not self.path.exists():
+            return
+
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            return
+
+        if isinstance(data, dict):
+            self._entries = data
+
+    def _save(self) -> None:
+        """Écrit le cache sur le disque de manière atomique."""
+        if self.path is None:
+            return
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = self.path.with_name(f"{self.path.name}.tmp")
+        content = json.dumps(self._entries, ensure_ascii=False)
+        tmp_path.write_text(content, encoding="utf-8")
+        tmp_path.replace(self.path)
 
 
 def _default_ttl_seconds() -> float:
@@ -88,4 +126,22 @@ def _default_ttl_seconds() -> float:
         return DEFAULT_TTL_SECONDS
 
 
-response_cache = ResponseCache(ttl_seconds=_default_ttl_seconds())
+def _default_cache_path() -> Path:
+    """Retourne le chemin du fichier de cache depuis la configuration."""
+    try:
+        config = get_rag_config()
+        cache_config = config.get("cache") or {}
+        path_value = cache_config.get("path")
+        if not path_value:
+            return PROJECT_ROOT / DEFAULT_CACHE_PATH
+
+        path = Path(path_value)
+        return path if path.is_absolute() else PROJECT_ROOT / path
+    except Exception:
+        return PROJECT_ROOT / DEFAULT_CACHE_PATH
+
+
+response_cache = ResponseCache(
+    ttl_seconds=_default_ttl_seconds(),
+    path=_default_cache_path(),
+)

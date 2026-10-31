@@ -57,3 +57,40 @@ def test_disabled_cache_returns_none():
     cache.set("Question", "reponse")
 
     assert cache.get("Question") is None
+
+
+def test_cache_persists_entries_to_disk(tmp_path):
+    path = tmp_path / "cache.json"
+    cache = ResponseCache(ttl_seconds=60, path=path)
+    cache.set(
+        "Question persistante",
+        "reponse",
+        citations=["[Rust Book — Ownership]"],
+    )
+
+    reloaded = ResponseCache(ttl_seconds=60, path=path)
+
+    entry = reloaded.get("Question persistante")
+    assert entry is not None
+    assert entry["response"] == "reponse"
+    assert entry["citations"] == ["[Rust Book — Ownership]"]
+
+
+def test_cache_ignores_corrupted_file(tmp_path):
+    path = tmp_path / "cache.json"
+    path.write_text("{not json", encoding="utf-8")
+
+    cache = ResponseCache(ttl_seconds=60, path=path)
+
+    assert cache.get("Question") is None
+
+
+def test_clear_persists_empty_cache(tmp_path):
+    path = tmp_path / "cache.json"
+    cache = ResponseCache(ttl_seconds=60, path=path)
+    cache.set("Question", "reponse")
+
+    cache.clear()
+
+    reloaded = ResponseCache(ttl_seconds=60, path=path)
+    assert reloaded.get("Question") is None

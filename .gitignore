@@ -85,6 +85,7 @@ rag/index/*
 # Data (optionnel, à ajuster selon besoins)
 data/raw/
 data/processed/*.jsonl
+data/cache.json
 
 # Logs & outputs
 logs/

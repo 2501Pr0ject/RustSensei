@@ -113,3 +113,4 @@ augmentation:
 # Cache (CAG - Cache Augmented Generation)
 cache:
   ttl_seconds: 604800  # 7 jours
+  path: "data/cache.json"
