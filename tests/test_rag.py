@@ -1,6 +1,6 @@
 """Tests unitaires du module app.rag (retrieval, formatage, citations)."""
 
-from app.rag import RAGRetriever, check_rag_available
+from app.rag import _BM25, RAGRetriever, check_rag_available
 
 RAG_CONFIG = {
     "retrieval": {
@@ -194,3 +194,28 @@ def test_get_citations_no_duplicates():
 
     assert len(citations) == 1
     assert citations[0] == "[Rust Book — Ownership]"
+
+
+def test_bm25_scores_relevant_document_higher():
+    bm25 = _BM25(
+        [
+            "Le borrow checker vérifie les références",
+            "Les types primitifs en Rust",
+            "ownership et borrow checker en Rust",
+        ]
+    )
+
+    scores = bm25.scores("borrow checker")
+
+    assert scores[0] > scores[1]
+    assert scores[2] > scores[1]
+
+
+def test_fuse_rrf_prefers_chunks_ranked_by_both():
+    fused = RAGRetriever._fuse_rrf([0, 1, 2], [2, 1, 3], top_k=3, rrf_k=60)
+
+    indices = [idx for idx, _ in fused]
+
+    # 1 et 2 apparaissent dans les deux classements, 3 seulement dans le lexical
+    assert indices[0] in (1, 2)
+    assert 3 not in indices

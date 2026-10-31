@@ -4,7 +4,10 @@ Module RAG pour RustSensei.
 Retrieval-Augmented Generation avec index FAISS et citations.
 """
 
+import math
 import pickle
+import re
+from collections import Counter
 
 from .config import PROJECT_ROOT, get_rag_config
 
@@ -37,6 +40,53 @@ def check_rag_available() -> tuple[bool, str]:
         return False, f"Erreur configuration RAG: {e}"
 
 
+class _BM25:
+    """BM25 minimaliste pour la recherche lexicale (retrieval hybride)."""
+
+    def __init__(self, corpus: list[str], k1: float = 1.5, b: float = 0.75):
+        self.k1 = k1
+        self.b = b
+        self.term_freqs = [Counter(self._tokenize(text)) for text in corpus]
+        self.doc_len = [sum(term_freq.values()) for term_freq in self.term_freqs]
+        self.avgdl = (sum(self.doc_len) / len(self.doc_len)) if self.doc_len else 1.0
+        if not self.avgdl:
+            self.avgdl = 1.0
+
+        n_docs = len(self.term_freqs)
+        doc_freq: Counter = Counter()
+        for term_freq in self.term_freqs:
+            doc_freq.update(term_freq.keys())
+
+        self.idf = {
+            term: math.log((n_docs - freq + 0.5) / (freq + 0.5) + 1.0)
+            for term, freq in doc_freq.items()
+        }
+
+    @staticmethod
+    def _tokenize(text: str) -> list[str]:
+        """Découpe un texte en termes normalisés (minuscules)."""
+        return re.findall(r"\w+", (text or "").lower())
+
+    def scores(self, query: str) -> list[float]:
+        """Calcule le score BM25 de chaque document pour une requête."""
+        terms = self._tokenize(query)
+        scores = []
+        for term_freq, doc_len in zip(self.term_freqs, self.doc_len):
+            score = 0.0
+            for term in terms:
+                freq = term_freq.get(term)
+                idf = self.idf.get(term)
+                if not freq or idf is None:
+                    continue
+                numerator = freq * (self.k1 + 1.0)
+                denominator = freq + self.k1 * (
+                    1.0 - self.b + self.b * doc_len / self.avgdl
+                )
+                score += idf * numerator / denominator
+            scores.append(score)
+        return scores
+
+
 class RAGRetriever:
     """Retriever RAG avec FAISS, embeddings et reranking."""
 
@@ -46,6 +96,7 @@ class RAGRetriever:
         self.metadata = None
         self.model = None
         self.reranker = None
+        self.bm25 = None
         self._load_index()
 
     def _load_index(self):
@@ -111,6 +162,10 @@ class RAGRetriever:
         if top_k is None:
             top_k = self.config["retrieval"]["top_k"]
 
+        hybrid_config = self.config.get("hybrid", {})
+        if hybrid_config.get("enabled", False):
+            return self._retrieve_hybrid(query, top_k, hybrid_config)
+
         # Nombre de candidats pour rerank
         rerank_config = self.config.get("rerank", {})
         initial_k = self.config["retrieval"].get("initial_k", top_k * 3)
@@ -138,6 +193,82 @@ class RAGRetriever:
                 candidates.append(chunk)
 
         # Reranking si actif
+        if rerank_config.get("enabled", False) and candidates:
+            candidates = self._rerank(query, candidates, top_k)
+
+        return candidates[:top_k]
+
+    def _get_bm25(self) -> _BM25:
+        """Charge l'index BM25 (lazy loading) pour la recherche lexicale."""
+        if self.bm25 is None:
+            texts = [chunk.get("text", "") for chunk in self.metadata]
+            self.bm25 = _BM25(texts)
+        return self.bm25
+
+    @staticmethod
+    def _fuse_rrf(
+        dense_ranked: list[int],
+        bm25_ranked: list[int],
+        top_k: int,
+        rrf_k: int = 60,
+    ) -> list[tuple[int, float]]:
+        """Fusionne deux classements avec Reciprocal Rank Fusion."""
+        scores: dict[int, float] = {}
+        for rank, idx in enumerate(dense_ranked):
+            scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
+        for rank, idx in enumerate(bm25_ranked):
+            scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
+
+        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        return ranked[:top_k]
+
+    def _retrieve_hybrid(
+        self, query: str, top_k: int, hybrid_config: dict
+    ) -> list[dict]:
+        """
+        Récupère les chunks via fusion dense (FAISS) + lexicale (BM25, RRF).
+
+        Le seuil de similarité cosinus n'est pas appliqué ici : la fusion RRF
+        classe les candidats sans dépendre d'une échelle de scores commune.
+        """
+        import numpy as np
+
+        rrf_k = hybrid_config.get("rrf_k", 60)
+        candidate_k = hybrid_config.get(
+            "candidate_k", self.config["retrieval"].get("initial_k", top_k * 3)
+        )
+
+        model = self._get_model()
+        query_embedding = model.encode(
+            [query],
+            normalize_embeddings=self.config["embeddings"].get("normalize", True),
+        )
+
+        scores, indices = self.index.search(np.array(query_embedding), candidate_k)
+        dense_ranked = [int(idx) for idx in indices[0] if idx >= 0]
+        dense_scores = {
+            int(idx): float(score)
+            for score, idx in zip(scores[0], indices[0])
+            if idx >= 0
+        }
+
+        bm25 = self._get_bm25()
+        bm25_scores = bm25.scores(query)
+        bm25_order = np.argsort(np.asarray(bm25_scores))[::-1][:candidate_k]
+        bm25_ranked = [
+            int(idx) for idx in bm25_order if bm25_scores[int(idx)] > 0
+        ]
+
+        fused = self._fuse_rrf(dense_ranked, bm25_ranked, candidate_k, rrf_k)
+
+        candidates = []
+        for idx, rrf_score in fused:
+            chunk = self.metadata[idx].copy()
+            chunk["score"] = dense_scores.get(idx, 0.0)
+            chunk["rrf_score"] = rrf_score
+            candidates.append(chunk)
+
+        rerank_config = self.config.get("rerank", {})
         if rerank_config.get("enabled", False) and candidates:
             candidates = self._rerank(query, candidates, top_k)
 

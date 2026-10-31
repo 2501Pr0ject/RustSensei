@@ -91,6 +91,12 @@ retrieval:
   score_threshold: 0.3   # Score minimum (cosine similarity)
   max_citations: 4       # Citations max à afficher
 
+# Retrieval hybride (KAG - fusion dense + lexicale)
+hybrid:
+  enabled: true
+  rrf_k: 60              # Constante de fusion Reciprocal Rank Fusion
+  candidate_k: 15        # Candidats par canal avant fusion
+
 # Reranking (M7)
 rerank:
   enabled: true  # Active pour ameliorer la pertinence
