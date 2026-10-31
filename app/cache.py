@@ -29,6 +29,8 @@ class ResponseCache:
         self.ttl_seconds = ttl_seconds
         self.path = path
         self._entries: dict[str, dict] = {}
+        self.hits = 0
+        self.misses = 0
         self._load()
 
     @staticmethod
@@ -48,11 +50,13 @@ class ResponseCache:
             Dictionnaire {response, citations, timestamp} ou None si absent ou expiré.
         """
         if self.ttl_seconds <= 0:
+            self.misses += 1
             return None
 
         key = self.normalize_key(query)
         entry = self._entries.get(key)
         if entry is None:
+            self.misses += 1
             return None
 
         timestamp = entry["timestamp"]
@@ -60,8 +64,10 @@ class ResponseCache:
         if current - timestamp > self.ttl_seconds:
             del self._entries[key]
             self._save()
+            self.misses += 1
             return None
 
+        self.hits += 1
         return entry
 
     def set(
@@ -87,6 +93,18 @@ class ResponseCache:
         """Vide le cache."""
         self._entries.clear()
         self._save()
+
+    def stats(self) -> dict:
+        """Retourne les statistiques d'utilisation du cache (depuis le démarrage)."""
+        total = self.hits + self.misses
+        return {
+            "entries": len(self._entries),
+            "hits": self.hits,
+            "misses": self.misses,
+            "hit_rate": self.hits / total if total else 0.0,
+            "ttl_seconds": self.ttl_seconds,
+            "path": str(self.path) if self.path is not None else None,
+        }
 
     def _load(self) -> None:
         """Charge le cache depuis le disque (silencieux si absent ou corrompu)."""

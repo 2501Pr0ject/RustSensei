@@ -243,6 +243,12 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/cache/stats")
+def cache_stats() -> dict:
+    """Retourne les statistiques d'utilisation du cache (hits, misses)."""
+    return response_cache.stats()
+
+
 if __name__ == "__main__":
     import uvicorn
 

@@ -85,6 +85,30 @@ def test_cache_ignores_corrupted_file(tmp_path):
     assert cache.get("Question") is None
 
 
+def test_stats_counts_hits_and_misses():
+    cache = ResponseCache(ttl_seconds=60)
+    cache.set("Question", "reponse")
+
+    cache.get("Question")
+    cache.get("Inconnue")
+
+    stats = cache.stats()
+    assert stats["entries"] == 1
+    assert stats["hits"] == 1
+    assert stats["misses"] == 1
+    assert stats["hit_rate"] == 0.5
+    assert stats["ttl_seconds"] == 60
+
+
+def test_stats_on_empty_cache():
+    cache = ResponseCache(ttl_seconds=60)
+
+    stats = cache.stats()
+
+    assert stats["entries"] == 0
+    assert stats["hit_rate"] == 0.0
+
+
 def test_clear_persists_empty_cache(tmp_path):
     path = tmp_path / "cache.json"
     cache = ResponseCache(ttl_seconds=60, path=path)

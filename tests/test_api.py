@@ -101,3 +101,24 @@ def test_stream_returns_cached_response(monkeypatch):
 
     assert response.status_code == 200
     assert response.text == "reponse stream cachee"
+
+
+def test_cache_stats_endpoint(monkeypatch):
+    cache = Mock()
+    cache.stats.return_value = {
+        "entries": 2,
+        "hits": 3,
+        "misses": 1,
+        "hit_rate": 0.75,
+        "ttl_seconds": 60,
+        "path": None,
+    }
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    response = client.get("/cache/stats")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["hits"] == 3
+    assert data["entries"] == 2
+    assert data["hit_rate"] == 0.75
