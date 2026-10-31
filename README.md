@@ -24,7 +24,7 @@ make chat
 - **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
 - **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF et rerank multilingue
-- **Cache (CAG)** - Réponses mémorisées sur disque, ~600x plus rapide sur une question répétée
+- **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Compilation : 61%** - Évaluation auto sur 50 prompts
 - **Français** - Réponses pédagogiques en français (100%)
 
@@ -46,6 +46,12 @@ persiste dans `data/cache.json` : une question déjà posée est servie
 instantanément, même après un redémarrage. Le TTL (7 jours par défaut) se règle
 dans `configs/rag_config.yaml` (section `cache`).
 
+La recherche est d'abord exacte, puis sémantique : si une question proche a déjà
+été posée, son embedding (modèle RAG) est comparé par similarité cosinus et la
+réponse est réutilisée au-delà du seuil `cache.semantic.threshold` (0.85 par
+défaut). Les reformulations du type « Comment créer un thread ? » / « Comment on
+crée un thread ? » touchent ainsi le cache sans génération.
+
 Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
 lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
 cross-encoder multilingue. Les termes exacts (noms d'API, types) sont ainsi
@@ -55,7 +61,8 @@ Statistiques du cache :
 
 ```bash
 curl http://localhost:8000/cache/stats
-# {"entries": 4, "hits": 3, "misses": 1, "hit_rate": 0.75, ...}
+# {"entries": 4, "hits": 3, "misses": 1, "hit_rate": 0.75,
+#  "semantic_enabled": true, "semantic_threshold": 0.85, ...}
 ```
 
 ## Utilisation
