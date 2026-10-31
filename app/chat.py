@@ -12,6 +12,8 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 
+from .cache import response_cache
+
 console = Console()
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -153,20 +155,32 @@ def chat_loop(use_rag: bool = False):
             if not user_input.strip():
                 continue
 
-            # RAG: récupérer le contexte
+            # RAG: récupérer le contexte (ou la réponse en cache)
             context = None
             citations = []
-            if retriever:
-                console.print("[dim]Recherche dans la documentation...[/dim]")
-                chunks = retriever.retrieve(user_input)
-                if chunks:
-                    context = retriever.format_context(chunks)
-                    citations = retriever.get_citations(chunks)
+            response = None
 
-            # Construire le prompt et générer
-            console.print("[dim]Génération...[/dim]")
-            full_prompt = build_prompt(user_input, config, context=context)
-            response = call_llama_cli(full_prompt, config)
+            if retriever:
+                cached = response_cache.get(user_input)
+                if cached is not None:
+                    response = cached["response"]
+                    citations = cached["citations"]
+                    console.print("[dim]Réponse servie depuis le cache[/dim]")
+                else:
+                    console.print("[dim]Recherche dans la documentation...[/dim]")
+                    chunks = retriever.retrieve(user_input)
+                    if chunks:
+                        context = retriever.format_context(chunks)
+                        citations = retriever.get_citations(chunks)
+
+            # Construire le prompt et générer si absent du cache
+            if response is None:
+                console.print("[dim]Génération...[/dim]")
+                full_prompt = build_prompt(user_input, config, context=context)
+                response = call_llama_cli(full_prompt, config)
+
+                if retriever:
+                    response_cache.set(user_input, response, citations)
 
             # Afficher la réponse
             console.print("\n[bold blue]RustSensei[/bold blue]:")
