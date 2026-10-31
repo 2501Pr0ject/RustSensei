@@ -23,6 +23,8 @@ make chat
 - **100% local** - Fonctionne sans connexion internet (après installation)
 - **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
+- **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF et rerank multilingue
+- **Cache (CAG)** - Réponses mémorisées sur disque, ~600x plus rapide sur une question répétée
 - **Compilation : 61%** - Évaluation auto sur 50 prompts
 - **Français** - Réponses pédagogiques en français (100%)
 
@@ -36,6 +38,25 @@ make chat
 | Dataset | 221 exemples |
 
 *Évaluation : 50 prompts, 5 critères, RAG activé*
+
+## Cache et retrieval hybride
+
+Le cache de réponses (CAG) mémorise les réponses par question normalisée et les
+persiste dans `data/cache.json` : une question déjà posée est servie
+instantanément, même après un redémarrage. Le TTL (7 jours par défaut) se règle
+dans `configs/rag_config.yaml` (section `cache`).
+
+Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
+lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
+cross-encoder multilingue. Les termes exacts (noms d'API, types) sont ainsi
+mieux couverts que par la recherche dense seule.
+
+Statistiques du cache :
+
+```bash
+curl http://localhost:8000/cache/stats
+# {"entries": 4, "hits": 3, "misses": 1, "hit_rate": 0.75, ...}
+```
 
 ## Utilisation
 
@@ -73,7 +94,7 @@ let s2 = s.clone();  // ou let s2 = &s;
 
 ```
 RustSensei/
-├── app/           # CLI et RAG (chat.py, rag.py)
+├── app/           # CLI, API et RAG (chat.py, rag.py, cache.py)
 ├── scripts/       # Evaluation, training, export
 ├── configs/       # Configuration modele, RAG, training
 ├── data/          # Dataset d'entrainement
