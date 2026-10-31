@@ -105,18 +105,18 @@ export function App() {
           {messages.map((m, i) => (
             <div
               key={i}
-              className={`self-end rounded-2xl px-4 py-3 rounded-br-md border bg-green-400/10 text-green-300 ${
+              className={`rounded-2xl px-4 py-3 ${
                 m.role === "user"
-                  ? ""
-                  : "self-start rounded-bl-sm border-green-400/30 bg-transparent text-green-400"
+                  ? "self-end rounded-br-md border bg-green-400/10 text-green-300"
+                  : "self-start rounded-bl-md border-green-400/30 bg-transparent text-green-400"
               }`}
             >
               {m.role === "assistant" ? (
-                <div className="rust-response text-sm leading-relaxed">
+                <div className="rust-response text-base leading-relaxed">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
                 </div>
               ) : (
-                <p className="whitespace-pre-wrap text-sm">{m.content}</p>
+                <p className="whitespace-pre-wrap text-base">{m.content}</p>
               )}
               {m.citations && m.citations.length > 0 ? (
                 <div className="mt-2 text-xs text-green-500/70">Sources : {m.citations.join(", ")}</div>
@@ -142,12 +142,12 @@ export function App() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Posez votre question sur Rust..."
-            className="min-w-0 flex-1 rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-sm text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
+            className="min-w-0 flex-1 rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-base text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
           />
           <button
             type="submit"
             disabled={sending || !input.trim()}
-            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-sm font-medium text-black disabled:opacity-40"
+            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-base font-medium text-black disabled:opacity-40"
           >
             Envoyer
           </button>
