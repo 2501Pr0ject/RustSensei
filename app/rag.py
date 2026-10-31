@@ -133,6 +133,23 @@ class RAGRetriever:
             self.model = SentenceTransformer(model_name, device=device)
         return self.model
 
+    def embed_query(self, text: str) -> list[float]:
+        """
+        Calcule l'embedding normalisé d'un texte (cache sémantique).
+
+        Args:
+            text: Question de l'utilisateur.
+
+        Returns:
+            Vecteur de dimension fixe (liste de floats).
+        """
+        model = self._get_model()
+        vector = model.encode(
+            [text],
+            normalize_embeddings=self.config["embeddings"].get("normalize", True),
+        )[0]
+        return [float(value) for value in vector]
+
     def _get_reranker(self):
         """Charge le modèle de reranking (lazy loading)."""
         if self.reranker is None:

@@ -161,7 +161,8 @@ def chat_loop(use_rag: bool = False):
             response = None
 
             if retriever:
-                cached = response_cache.get(user_input)
+                embedder = getattr(retriever, "embed_query", None)
+                cached = response_cache.get(user_input, embedder=embedder)
                 if cached is not None:
                     response = cached["response"]
                     citations = cached["citations"]
@@ -180,7 +181,9 @@ def chat_loop(use_rag: bool = False):
                 response = call_llama_cli(full_prompt, config)
 
                 if retriever:
-                    response_cache.set(user_input, response, citations)
+                    response_cache.set(
+                        user_input, response, citations, embedder=embedder
+                    )
 
             # Afficher la réponse
             console.print("\n[bold blue]RustSensei[/bold blue]:")

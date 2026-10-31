@@ -165,9 +165,10 @@ def chat(request: ChatRequest) -> ChatResponse:
         retriever = get_rag_retriever()
 
     response = None
+    embedder = getattr(retriever, "embed_query", None)
 
     if retriever:
-        cached = response_cache.get(request.message)
+        cached = response_cache.get(request.message, embedder=embedder)
         if cached is not None:
             response = cached["response"]
             citations = cached["citations"]
@@ -180,7 +181,9 @@ def chat(request: ChatRequest) -> ChatResponse:
             response = call_llama_cli(
                 build_prompt(request.message, config, context=context), config
             )
-            response_cache.set(request.message, response, citations)
+            response_cache.set(
+                request.message, response, citations, embedder=embedder
+            )
 
     if response is None:
         response = call_llama_cli(
@@ -211,9 +214,11 @@ async def chat_stream(request: ChatRequest):
 
     async def token_stream():
         full_response = ""
+        citations = []
+        embedder = getattr(retriever, "embed_query", None)
 
         if retriever is not None:
-            cached = response_cache.get(request.message)
+            cached = response_cache.get(request.message, embedder=embedder)
             if cached is not None:
                 yield cached["response"]
                 return
@@ -223,6 +228,7 @@ async def chat_stream(request: ChatRequest):
             chunks = retriever.retrieve(request.message)
             if chunks:
                 context = retriever.format_context(chunks)
+                citations = retriever.get_citations(chunks)
 
         full_prompt = build_prompt(request.message, config, context=context)
         async for token in _stream_llama_response(
@@ -232,7 +238,9 @@ async def chat_stream(request: ChatRequest):
             yield token
 
         if retriever is not None and full_response:
-            response_cache.set(request.message, full_response)
+            response_cache.set(
+                request.message, full_response, citations, embedder=embedder
+            )
 
     return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
 

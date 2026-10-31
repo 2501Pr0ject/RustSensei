@@ -118,3 +118,96 @@ def test_clear_persists_empty_cache(tmp_path):
 
     reloaded = ResponseCache(ttl_seconds=60, path=path)
     assert reloaded.get("Question") is None
+
+
+def fake_embedder(text):
+    """Vecteurs unitaires prédéfinis : proche de [1, 0] ou orthogonal."""
+    vectors = {
+        "question initiale": [1.0, 0.0],
+        "question proche": [0.99, 0.14],
+        "question lointaine": [0.0, 1.0],
+    }
+    return vectors[text.strip().lower()]
+
+
+def make_semantic_cache(**kwargs):
+    options = {"ttl_seconds": 60, "semantic_enabled": True, "semantic_threshold": 0.9}
+    options.update(kwargs)
+    return ResponseCache(**options)
+
+
+def test_semantic_cache_returns_close_question():
+    cache = make_semantic_cache()
+    cache.set("Question initiale", "reponse", embedder=fake_embedder)
+
+    entry = cache.get("Question proche", embedder=fake_embedder)
+
+    assert entry is not None
+    assert entry["response"] == "reponse"
+
+
+def test_semantic_cache_rejects_distant_question():
+    cache = make_semantic_cache()
+    cache.set("Question initiale", "reponse", embedder=fake_embedder)
+
+    assert cache.get("Question lointaine", embedder=fake_embedder) is None
+
+
+def test_semantic_cache_skips_entries_without_embedding():
+    cache = make_semantic_cache()
+    cache.set("Question initiale", "reponse")
+
+    assert cache.get("Question proche", embedder=fake_embedder) is None
+
+
+def test_semantic_cache_disabled_never_calls_embedder():
+    calls = []
+
+    def embedder(text):
+        calls.append(text)
+        return [1.0, 0.0]
+
+    cache = ResponseCache(ttl_seconds=60)
+    cache.set("Question initiale", "reponse")
+
+    assert cache.get("Question proche", embedder=embedder) is None
+    assert calls == []
+
+
+def test_exact_match_does_not_call_embedder():
+    calls = []
+
+    def embedder(text):
+        calls.append(text)
+        return [1.0, 0.0]
+
+    cache = make_semantic_cache()
+    cache.set("Question initiale", "reponse")
+
+    entry = cache.get("Question initiale", embedder=embedder)
+
+    assert entry is not None
+    assert calls == []
+
+
+def test_embedder_failure_falls_back_to_exact_match():
+    def broken_embedder(text):
+        raise RuntimeError("modele indisponible")
+
+    cache = make_semantic_cache()
+    cache.set("Question initiale", "reponse", embedder=broken_embedder)
+
+    assert cache.get("Question initiale", embedder=broken_embedder) is not None
+    assert cache.get("Question proche", embedder=broken_embedder) is None
+
+
+def test_semantic_embedding_persists_to_disk(tmp_path):
+    path = tmp_path / "cache.json"
+    cache = make_semantic_cache(path=path)
+    cache.set("Question initiale", "reponse", embedder=fake_embedder)
+
+    reloaded = make_semantic_cache(path=path)
+    entry = reloaded.get("Question proche", embedder=fake_embedder)
+
+    assert entry is not None
+    assert entry["response"] == "reponse"

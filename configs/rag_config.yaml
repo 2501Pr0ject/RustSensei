@@ -120,3 +120,6 @@ augmentation:
 cache:
   ttl_seconds: 604800  # 7 jours
   path: "data/cache.json"
+  semantic:
+    enabled: true
+    threshold: 0.85    # Similarité cosinus minimale (0.85 = paraphrase proche)
