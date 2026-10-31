@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import rehypeHighlight from "rehype-highlight";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -16,12 +17,13 @@ export function App() {
   const [useRag, setUseRag] = useState(false);
   const [dark, setDark] = useState(false);
   const [sending, setSending] = useState(false);
+  const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending]);
+  }, [messages, sending, streaming]);
 
   const send = async () => {
     const text = input.trim();
@@ -30,33 +32,59 @@ export function App() {
     }
     setInput("");
     setError(null);
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", content: text },
+      { role: "assistant", content: "" },
+    ]);
     setSending(true);
+    setStreaming(true);
 
     try {
-      const res = await fetch(`${API_URL}/chat`, {
+      const res = await fetch(`${API_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, use_rag: useRag }),
       });
-      const data = (await res.json()) as {
-        response: string;
-        citations: string[];
-        rag_used: boolean;
-      };
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: data.response, citations: data.citations },
-      ]);
+      if (!res.ok) {
+        throw new Error(`Erreur streaming: ${res.status}`);
+      }
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let streamText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        streamText += decoder.decode(value, { stream: true });
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant") {
+            next[next.length - 1] = { ...last, content: streamText };
+          }
+          return next;
+        });
+      }
+      streamText += decoder.decode();
+      setMessages((prev) => {
+        const next = [...prev];
+        const last = next[next.length - 1];
+        if (last?.role === "assistant") {
+          next[next.length - 1] = { ...last, content: streamText };
+        }
+        return next;
+      });
     } catch {
       setError("Impossible de joindre le backend RustSensei. Lancez `make api`.");
     } finally {
       setSending(false);
+      setStreaming(false);
     }
   };
 
   const lastMessage = messages[messages.length - 1];
-  const showThinking = sending && (!lastMessage || lastMessage.role === "user");
+  const showThinking =
+    sending && (!lastMessage || lastMessage.role === "user" || lastMessage.content === "");
 
   const clearChat = () => {
     setMessages([]);
@@ -114,7 +142,7 @@ export function App() {
             >
               {m.role === "assistant" ? (
                 <div className="rust-response text-base leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm, rehypeHighlight]}>{m.content}</ReactMarkdown>
                 </div>
               ) : (
                 <p className="whitespace-pre-wrap text-base">{m.content}</p>
