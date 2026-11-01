@@ -1,5 +1,7 @@
 """Tests unitaires de l'API FastAPI (M8)."""
 
+import base64
+import json
 from unittest.mock import Mock
 
 from fastapi.testclient import TestClient
@@ -101,6 +103,60 @@ def test_stream_returns_cached_response(monkeypatch):
 
     assert response.status_code == 200
     assert response.text == "reponse stream cachee"
+
+
+def test_stream_exposes_citations_header(monkeypatch):
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: object())
+
+    cache = Mock()
+    cache.get.return_value = {
+        "response": "reponse stream cachee",
+        "citations": ["[Rust Book — Ownership]"],
+        "timestamp": 0.0,
+    }
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    response = client.post(
+        "/chat/stream", json={"message": "Question deja posee", "use_rag": True}
+    )
+
+    encoded = response.headers["X-Citations"]
+    citations = json.loads(base64.b64decode(encoded).decode("utf-8"))
+    assert citations == ["[Rust Book — Ownership]"]
+
+
+def test_stream_retrieves_and_stores_citations(monkeypatch):
+    class StubRetriever:
+        def retrieve(self, query):
+            return [{"text": "chunk"}]
+
+        def format_context(self, chunks):
+            return "contexte"
+
+        def get_citations(self, chunks):
+            return ["[Rust Book — Ownership]"]
+
+    async def fake_stream(config, prompt, system_prompt):
+        yield "reponse "
+        yield "generee"
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", StubRetriever)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    cache = Mock()
+    cache.get.return_value = None
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    response = client.post(
+        "/chat/stream", json={"message": "Nouvelle question", "use_rag": True}
+    )
+
+    assert response.text == "reponse generee"
+    assert "X-Citations" in response.headers
+    cache.set.assert_called_once()
+    assert cache.set.call_args.args[2] == ["[Rust Book — Ownership]"]
 
 
 def test_cache_stats_endpoint(monkeypatch):

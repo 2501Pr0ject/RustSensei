@@ -11,6 +11,29 @@ interface ChatMessage {
 
 const API_URL = "";
 
+function splitCitation(citation: string): { label: string; url?: string } {
+  const match = citation.match(/^\[([^\]]+)\]\((.+)\)$/);
+  if (!match) {
+    return { label: citation };
+  }
+  return { label: match[1], url: match[2] };
+}
+
+function readCitations(res: Response): string[] {
+  const encoded = res.headers.get("X-Citations");
+  if (!encoded) {
+    return [];
+  }
+  try {
+    const binary = atob(encoded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    const parsed = JSON.parse(new TextDecoder().decode(bytes));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -48,6 +71,17 @@ export function App() {
       });
       if (!res.ok) {
         throw new Error(`Erreur streaming: ${res.status}`);
+      }
+      const citations = readCitations(res);
+      if (citations.length > 0) {
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant") {
+            next[next.length - 1] = { ...last, citations };
+          }
+          return next;
+        });
       }
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
@@ -148,7 +182,29 @@ export function App() {
                 <p className="whitespace-pre-wrap text-base">{m.content}</p>
               )}
               {m.citations && m.citations.length > 0 ? (
-                <div className="mt-2 text-xs text-green-500/70">Sources : {m.citations.join(", ")}</div>
+                <div className="mt-2 text-xs text-green-500/70">
+                  Sources :{" "}
+                  {m.citations.map((citation, index) => {
+                    const { label, url } = splitCitation(citation);
+                    return (
+                      <span key={citation}>
+                        {index > 0 ? ", " : ""}
+                        {url ? (
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="underline decoration-green-500/40 underline-offset-2 hover:text-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
+                          >
+                            {label}
+                          </a>
+                        ) : (
+                          label
+                        )}
+                      </span>
+                    );
+                  })}
+                </div>
               ) : null}
             </div>
           ))}

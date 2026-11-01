@@ -3,6 +3,7 @@ API REST FastAPI pour RustSensei (M8).
 
 Expose le pipeline de chat (llama.cpp + RAG) via HTTP.
 """
+import base64
 import json
 import socket
 import subprocess
@@ -197,6 +198,12 @@ def chat(request: ChatRequest) -> ChatResponse:
     )
 
 
+def _encode_citations(citations: list[str]) -> str:
+    """Encode les citations en base64 (UTF-8) pour un header HTTP."""
+    payload = json.dumps(citations, ensure_ascii=False).encode("utf-8")
+    return base64.b64encode(payload).decode("ascii")
+
+
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
     """Genere une reponse en streaming via llama-server (avec cache) + SSE."""
@@ -212,24 +219,31 @@ async def chat_stream(request: ChatRequest):
     if use_rag:
         retriever = get_rag_retriever()
 
-    async def token_stream():
-        full_response = ""
-        citations = []
-        embedder = getattr(retriever, "embed_query", None)
+    embedder = getattr(retriever, "embed_query", None)
+    cached = None
+    context = None
+    citations = []
 
-        if retriever is not None:
-            cached = response_cache.get(request.message, embedder=embedder)
-            if cached is not None:
-                yield cached["response"]
-                return
-
-        context = None
-        if retriever:
+    if retriever is not None:
+        cached = response_cache.get(request.message, embedder=embedder)
+        if cached is not None:
+            citations = cached["citations"]
+        else:
             chunks = retriever.retrieve(request.message)
             if chunks:
                 context = retriever.format_context(chunks)
                 citations = retriever.get_citations(chunks)
 
+    headers = {}
+    if citations:
+        headers["X-Citations"] = _encode_citations(citations)
+
+    async def token_stream():
+        if cached is not None:
+            yield cached["response"]
+            return
+
+        full_response = ""
         full_prompt = build_prompt(request.message, config, context=context)
         async for token in _stream_llama_response(
             config, full_prompt, config["prompt"]["system"]
@@ -242,7 +256,11 @@ async def chat_stream(request: ChatRequest):
                 request.message, full_response, citations, embedder=embedder
             )
 
-    return StreamingResponse(token_stream(), media_type="text/plain; charset=utf-8")
+    return StreamingResponse(
+        token_stream(),
+        media_type="text/plain; charset=utf-8",
+        headers=headers,
+    )
 
 
 @app.get("/health")
