@@ -54,6 +54,10 @@ export function App() {
     if (!text || sending) {
       return;
     }
+    const history = messages
+      .filter((m) => m.content.trim().length > 0)
+      .slice(-6)
+      .map((m) => ({ role: m.role, content: m.content }));
     setInput("");
     setError(null);
     setMessages((prev) => [
@@ -68,7 +72,7 @@ export function App() {
       const res = await fetch(`${API_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, use_rag: useRag }),
+        body: JSON.stringify({ message: text, use_rag: useRag, history }),
       });
       if (!res.ok) {
         throw new Error(`Erreur streaming: ${res.status}`);
