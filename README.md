@@ -55,7 +55,9 @@ crée un thread ? » touchent ainsi le cache sans génération.
 
 Les réponses RAG affichent leurs sources dans l'interface : le backend transmet
 les citations via le header `X-Citations` (base64/UTF-8) et l'UI les rend sous
-forme de liens vers la documentation officielle.
+forme de liens vers la documentation officielle. Les réponses issues du cache
+sont signalées par un badge (header `X-Cache` dans `/chat/stream`), ainsi que par
+`GET /cache/stats`.
 
 Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
 lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
