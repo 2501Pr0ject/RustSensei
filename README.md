@@ -125,6 +125,15 @@ Dans l'interface web, Entrée envoie la question et Maj+Entrée insère un saut 
 ligne : on peut coller un extrait de code Rust sur plusieurs lignes. Sur écran
 tactile, Entrée insère un saut de ligne et l'envoi se fait avec le bouton.
 
+L'interface affiche aussi :
+- l'état de l'API dans l'en-tête, avec une nouvelle tentative automatique quand
+  elle est hors ligne (`GET /health`, qui indique aussi si l'index RAG est
+  disponible : `{"status": "ok", "rag_available": true, "rag_error": null}`) ;
+- un bouton **Stop** pendant la génération : la réponse partielle est conservée
+  et la génération est arrêtée côté serveur ;
+- un bouton **Copier** et le langage sur chaque bloc de code ;
+- des exemples de questions cliquables quand la conversation est vide.
+
 ### Exemple
 
 ```
@@ -216,6 +225,7 @@ Fonctionnalités :
 - Citations avec liens vers docs
 - Syntax highlighting Rust
 - Saisie multi-ligne pour coller du code
+- Bouton Stop, copie des blocs de code, état de l'API
 
 ### M9 — Dataset étendu (terminé)
 
