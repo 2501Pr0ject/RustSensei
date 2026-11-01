@@ -84,3 +84,49 @@ def test_evaluate_response_response_length():
 
     assert result_long["auto_checks"]["response_length"] is True
     assert result_short["auto_checks"]["response_length"] is False
+
+
+def test_parse_seeds_keeps_order_and_removes_duplicates():
+    from evaluate import parse_seeds
+
+    assert parse_seeds("42, 1,2,42") == [42, 1, 2]
+
+
+def test_parse_seeds_rejects_empty():
+    import argparse
+
+    import pytest
+    from evaluate import parse_seeds
+
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_seeds(" , ")
+
+
+def test_average_score():
+    from evaluate import average_score
+
+    results = [
+        {"evaluation": {"scores": {"auto_composite": 2.0}}},
+        {"evaluation": {"scores": {"auto_composite": 4.0}}},
+    ]
+
+    assert average_score(results) == 3.0
+    assert average_score([]) == 0.0
+
+
+def test_run_metadata_records_model_and_seed():
+    from pathlib import Path
+
+    from evaluate import run_metadata
+
+    config = {
+        "paths": {"model": "models/inexistant.gguf"},
+        "inference": {"seed": 7},
+    }
+
+    meta = run_metadata(config, use_rag=False, prompts_file=Path("eval/prompts_fr.jsonl"))
+
+    assert meta["model_path"] == "models/inexistant.gguf"
+    assert meta["model_size_bytes"] is None
+    assert meta["seed"] == 7
+    assert meta["rag_settings"] is None

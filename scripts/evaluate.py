@@ -6,7 +6,9 @@ Supporte le mode RAG pour comparaison baseline vs RAG.
 """
 
 import argparse
+import copy
 import json
+import statistics
 import subprocess
 import sys
 from datetime import datetime
@@ -296,7 +298,58 @@ def print_summary(results: list[dict]):
         console.print(f"  [bold]compilation[/bold]: {compiled_blocks}/{total_blocks} ({comp_rate:.0f}%)")
 
 
-def save_results(results: list[dict], config: dict, output_path: Path, use_rag: bool = False):
+def _git_commit() -> str | None:
+    """Commit courant du depot (None si indisponible)."""
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return out.stdout.strip() or None
+    except (OSError, subprocess.CalledProcessError):
+        return None
+
+
+def _rag_settings() -> dict | None:
+    """Reglages du retrieval utilises (pour comparer des rapports entre eux)."""
+    try:
+        from app.config import get_rag_config
+
+        rag = get_rag_config()
+    except Exception:
+        return None
+    return {
+        "hybrid": (rag.get("hybrid") or {}).get("enabled", False),
+        "knowledge": (rag.get("knowledge") or {}).get("enabled", False),
+        "rerank": (rag.get("rerank") or {}).get("enabled", False),
+        "rerank_model": (rag.get("rerank") or {}).get("model"),
+        "top_k": (rag.get("retrieval") or {}).get("top_k"),
+    }
+
+
+def run_metadata(config: dict, use_rag: bool, prompts_file: Path) -> dict:
+    """Metadonnees de reproductibilite : modele reellement utilise, seed, code, RAG."""
+    model_path = PROJECT_ROOT / config["paths"]["model"]
+    return {
+        "model_path": str(config["paths"]["model"]),
+        "model_size_bytes": model_path.stat().st_size if model_path.exists() else None,
+        "seed": config["inference"].get("seed"),
+        "prompts_file": str(prompts_file),
+        "git_commit": _git_commit(),
+        "rag_settings": _rag_settings() if use_rag else None,
+    }
+
+
+def save_results(
+    results: list[dict],
+    config: dict,
+    output_path: Path,
+    use_rag: bool = False,
+    metadata: dict | None = None,
+):
     """Sauvegarde les résultats avec métadonnées pour reproductibilité."""
     output_data = {
         "timestamp": datetime.now().isoformat(),
@@ -305,6 +358,7 @@ def save_results(results: list[dict], config: dict, output_path: Path, use_rag: 
         "inference_params": config["inference"],
         "llama_cpp_rev": "b4823",
         "total_prompts": len(results),
+        **(metadata or {}),
         "results": results,
     }
 
@@ -409,6 +463,46 @@ def run_ab_comparison(prompts: list[dict], config: dict) -> tuple[list[dict], li
     return baseline_results, rag_results
 
 
+def parse_seeds(value: str) -> list[int]:
+    """Parse une liste de seeds "42,1,2" (doublons retires, ordre conserve)."""
+    seeds = []
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        seed = int(part)
+        if seed not in seeds:
+            seeds.append(seed)
+    if not seeds:
+        raise argparse.ArgumentTypeError("au moins une seed attendue")
+    return seeds
+
+
+def average_score(results: list[dict]) -> float:
+    """Score composite moyen d'une evaluation."""
+    if not results:
+        return 0.0
+    return sum(r["evaluation"]["scores"]["auto_composite"] for r in results) / len(results)
+
+
+def print_seed_summary(scores_by_seed: dict[int, float]):
+    """Affiche la dispersion du score global entre seeds (bruit de generation)."""
+    table = Table(title="Score global par seed")
+    table.add_column("Seed", justify="right")
+    table.add_column("Score", justify="right")
+    for seed, score in scores_by_seed.items():
+        table.add_row(str(seed), f"{score:.2f}/5")
+    values = list(scores_by_seed.values())
+    mean = statistics.mean(values)
+    table.add_row("[bold]Moyenne[/bold]", f"[bold]{mean:.2f}/5[/bold]")
+    console.print(table)
+    if len(values) > 1:
+        console.print(
+            f"Ecart-type entre seeds : {statistics.stdev(values):.3f} "
+            f"(min {min(values):.2f}, max {max(values):.2f})"
+        )
+
+
 def main():
     """Point d'entrée."""
     parser = argparse.ArgumentParser(description="Évaluation RustSensei")
@@ -416,13 +510,33 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="Fichier de sortie")
     parser.add_argument("--rag", action="store_true", help="Activer le mode RAG")
     parser.add_argument("--compare", action="store_true", help="Comparaison A/B baseline vs RAG")
+    parser.add_argument(
+        "--seeds",
+        type=parse_seeds,
+        default=None,
+        help="Seeds de generation, ex. 42,1,2 (un rapport par seed ; defaut : seed de la config)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=None,
+        help="Fichier GGUF a evaluer a la place de paths.model (ex. un modele LoRA fusionne)",
+    )
+    parser.add_argument(
+        "--prompts",
+        type=str,
+        default=None,
+        help="Fichier de prompts JSONL (defaut : eval/prompts_fr.jsonl)",
+    )
     args = parser.parse_args()
 
-    # Charger config
+    # Charger config (+ surcharges en ligne de commande)
     config = load_config()
+    if args.model:
+        config["paths"]["model"] = args.model
 
     # Charger prompts et rubric
-    prompts_file = EVAL_DIR / "prompts_fr.jsonl"
+    prompts_file = Path(args.prompts) if args.prompts else EVAL_DIR / "prompts_fr.jsonl"
     rubric_file = EVAL_DIR / "rubric.json"
 
     if not prompts_file.exists():
@@ -448,30 +562,59 @@ def main():
 
         # Sauvegarder les deux résultats
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        save_results(baseline_results, config, REPORTS_DIR / f"eval_baseline_{timestamp}.json", use_rag=False)
-        save_results(rag_results, config, REPORTS_DIR / f"eval_rag_{timestamp}.json", use_rag=True)
+        save_results(
+            baseline_results, config, REPORTS_DIR / f"eval_baseline_{timestamp}.json",
+            use_rag=False, metadata=run_metadata(config, False, prompts_file),
+        )
+        save_results(
+            rag_results, config, REPORTS_DIR / f"eval_rag_{timestamp}.json",
+            use_rag=True, metadata=run_metadata(config, True, prompts_file),
+        )
         return
 
-    # Mode simple (baseline ou RAG)
+    # Mode simple (baseline ou RAG), eventuellement sur plusieurs seeds
     mode_str = "[green]RAG[/green]" if args.rag else "[yellow]Baseline[/yellow]"
     console.print(f"[bold blue]Évaluation RustSensei[/bold blue] ({mode_str})\n")
 
-    console.print(f"Modèle: {config['model']['name']}")
+    console.print(f"Modèle: {config['paths']['model']}")
     console.print(f"llama-cli: {config['paths']['llama_cli']}\n")
 
-    console.print(f"Prompts: {len(prompts)}")
+    console.print(f"Prompts: {len(prompts)} ({prompts_file})")
     console.print(f"Critères: {len(rubric['criteria'])}\n")
 
-    # Évaluer
-    results = run_evaluation(prompts, config, use_rag=args.rag)
-
-    # Résumé et sauvegarde
-    print_summary(results)
+    seeds = args.seeds or [config["inference"].get("seed", 42)]
+    if args.output and len(seeds) > 1:
+        console.print("[red]--output n'est pas compatible avec plusieurs seeds[/red]")
+        sys.exit(1)
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     mode_suffix = "_rag" if args.rag else "_baseline"
-    output_file = Path(args.output) if args.output else REPORTS_DIR / f"eval{mode_suffix}_{timestamp}.json"
-    save_results(results, config, output_file, use_rag=args.rag)
+    scores_by_seed = {}
+
+    for seed in seeds:
+        run_config = copy.deepcopy(config)
+        run_config["inference"]["seed"] = seed
+        if len(seeds) > 1:
+            console.print(f"\n[bold]Seed {seed}[/bold]")
+
+        results = run_evaluation(prompts, run_config, use_rag=args.rag)
+        print_summary(results)
+        scores_by_seed[seed] = average_score(results)
+
+        if args.output:
+            output_file = Path(args.output)
+        elif len(seeds) > 1:
+            output_file = REPORTS_DIR / f"eval{mode_suffix}_{timestamp}_s{seed}.json"
+        else:
+            output_file = REPORTS_DIR / f"eval{mode_suffix}_{timestamp}.json"
+        save_results(
+            results, run_config, output_file, use_rag=args.rag,
+            metadata=run_metadata(run_config, args.rag, prompts_file),
+        )
+
+    if len(seeds) > 1:
+        console.print()
+        print_seed_summary(scores_by_seed)
 
 
 if __name__ == "__main__":
