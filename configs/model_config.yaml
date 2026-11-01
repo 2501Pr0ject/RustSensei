@@ -8,9 +8,9 @@ paths:
 
 # Modèle
 model:
-  name: "RustSensei-1.5B (LoRA fine-tuned)"
+  name: "RustSensei-1.5B (Qwen2.5-Coder baseline, sans LoRA)"
   base: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  file: "rustsensei-1.5b-q4_k_m.gguf"
+  file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"  # cf. paths.model (LoRA en pause, M9)
   quantization: "Q4_K_M"
 
 # Paramètres llama-cli
