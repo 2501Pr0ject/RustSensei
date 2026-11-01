@@ -17,6 +17,26 @@ const HISTORY_STORAGE_KEY = "rustsensei_history";
 
 const MAX_HISTORY_MESSAGES = 6;
 
+const EXAMPLE_QUESTIONS: { label: string; question: string }[] = [
+  {
+    label: "Pourquoi ce code ne compile pas ?",
+    question:
+      'Pourquoi ce code ne compile pas ?\nlet s = String::from("hello");\nlet t = s;\nprintln!("{}", s);',
+  },
+  {
+    label: "Box, Rc ou Arc : lequel choisir ?",
+    question: "Quelle est la différence entre Box, Rc et Arc, et quand utiliser chacun ?",
+  },
+  {
+    label: "Gérer les erreurs avec Result",
+    question: "Comment gérer les erreurs avec Result et l'opérateur ? en Rust ?",
+  },
+  {
+    label: "Les lifetimes expliquées simplement",
+    question: "Explique les lifetimes en Rust avec un exemple simple.",
+  },
+];
+
 // Ecrans tactiles : Entree insere un saut de ligne, l'envoi passe par le bouton.
 const isCoarsePointer = (): boolean =>
   typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
@@ -227,8 +247,8 @@ export function App() {
     }
   }, [messages, sending, streaming]);
 
-  const send = async () => {
-    const text = input.trim();
+  const send = async (question?: string) => {
+    const text = (question ?? input).trim();
     if (!text || sending) {
       return;
     }
@@ -236,7 +256,9 @@ export function App() {
       .filter((m) => m.content.trim().length > 0)
       .slice(-6)
       .map((m) => ({ role: m.role, content: m.content }));
-    setInput("");
+    if (question === undefined) {
+      setInput("");
+    }
     setError(null);
     followBottomRef.current = true;
     setShowJumpToBottom(false);
@@ -399,6 +421,37 @@ export function App() {
             aria-busy={streaming}
             className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
           >
+            {messages.length === 0 && !sending ? (
+              <div className="m-auto flex max-w-xl flex-col gap-4 px-2 py-6 text-green-400">
+                <div>
+                  <h2 className="text-lg font-semibold text-green-300">
+                    Bienvenue sur RustSensei
+                  </h2>
+                  <p className="mt-1 text-sm leading-relaxed text-green-500/80">
+                    Un assistant local pour apprendre le Rust en français. Posez une question,
+                    ou collez un extrait de code qui ne compile pas.
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-green-500/80">
+                    Activez <span className="text-green-300">RAG</span> pour appuyer les réponses
+                    sur la documentation officielle (Rust Book, Reference, Cookbook…) avec les
+                    sources citées.
+                  </p>
+                </div>
+                <ul className="grid gap-2 sm:grid-cols-2" aria-label="Exemples de questions">
+                  {EXAMPLE_QUESTIONS.map(({ label, question }) => (
+                    <li key={label}>
+                      <button
+                        type="button"
+                        onClick={() => void send(question)}
+                        className="h-full w-full rounded-xl border border-green-400/30 px-3 py-2.5 text-left text-sm text-green-300 hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
+                      >
+                        {label}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             {messages.map((m, i) => (
               <div
                 key={i}
