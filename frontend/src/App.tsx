@@ -348,7 +348,8 @@ export function App() {
         } catch {
           // corps non JSON : on garde le seul code HTTP
         }
-        setError(`Le backend a répondu une erreur (${res.status})${detail}.`);
+        const sentence = `Le backend a répondu une erreur (${res.status})${detail}`;
+        setError(/[.!?]$/.test(sentence) ? sentence : `${sentence}.`);
         return;
       }
       const citations = readCitations(res);
