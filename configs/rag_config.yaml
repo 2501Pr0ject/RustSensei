@@ -97,6 +97,12 @@ hybrid:
   rrf_k: 60              # Constante de fusion Reciprocal Rank Fusion
   candidate_k: 15        # Candidats par canal avant fusion
 
+# Graphe de connaissances Rust (KAG - elargissement des requetes)
+knowledge:
+  enabled: true
+  path: "configs/knowledge_graph.yaml"
+  max_expansions: 2      # Concepts relies ajoutes au canal lexicale
+
 # Reranking (M7)
 rerank:
   enabled: true  # Active pour ameliorer la pertinence

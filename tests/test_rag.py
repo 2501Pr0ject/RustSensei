@@ -1,5 +1,9 @@
 """Tests unitaires du module app.rag (retrieval, formatage, citations)."""
 
+from unittest.mock import Mock
+
+import pytest
+
 from app.rag import _BM25, RAGRetriever, check_rag_available
 
 RAG_CONFIG = {
@@ -18,7 +22,20 @@ def make_retriever() -> RAGRetriever:
     """Crée un retriever sans charger l'index FAISS (instantiation légère)."""
     retriever = RAGRetriever.__new__(RAGRetriever)
     retriever.config = RAG_CONFIG
+    retriever.knowledge_graph = None
     return retriever
+
+
+@pytest.fixture
+def mock_knowledge():
+    graph = Mock()
+    graph.is_empty = False
+    graph.expand.side_effect = (
+        lambda query, max_expansions: ["Send et Sync send sync", "Arc arc"][
+            :max_expansions
+        ]
+    )
+    return graph
 
 
 def test_check_rag_available_missing_index(monkeypatch, tmp_path):
@@ -219,3 +236,58 @@ def test_fuse_rrf_prefers_chunks_ranked_by_both():
     # 1 et 2 apparaissent dans les deux classements, 3 seulement dans le lexical
     assert indices[0] in (1, 2)
     assert 3 not in indices
+
+
+def test_fuse_channels_merges_more_than_two_channels():
+    fused = RAGRetriever._fuse_channels(
+        [[5, 0], [6, 5], [5, 7]], rrf_k=60
+    )
+
+    indices = [idx for idx, _ in fused]
+
+    # 5 apparait en tete des trois canaux
+    assert indices[0] == 5
+    assert len(set(indices)) == len(indices)
+
+
+def test_fuse_rrf_matches_fuse_channels():
+    dense = [0, 1, 2]
+    bm25 = [2, 1, 3]
+
+    fused_rrf = RAGRetriever._fuse_rrf(dense, bm25, top_k=4, rrf_k=60)
+    fused_channels = RAGRetriever._fuse_channels([dense, bm25], rrf_k=60)[:4]
+
+    assert [idx for idx, _ in fused_rrf] == [idx for idx, _ in fused_channels]
+
+
+def test_graph_expansion_disabled_returns_empty(mock_knowledge):
+    retriever = make_retriever()
+    retriever.knowledge_graph = mock_knowledge
+
+    assert (
+        retriever._graph_expansion("Rc entre threads", {"enabled": False}) == []
+    )
+
+
+def test_graph_expansion_returns_related_terms(mock_knowledge):
+    retriever = make_retriever()
+    retriever.knowledge_graph = mock_knowledge
+
+    terms = retriever._graph_expansion(
+        "Rc entre threads", {"enabled": True, "max_expansions": 2}
+    )
+
+    mock_knowledge.expand.assert_called_once_with("Rc entre threads", 2)
+    assert "Send et Sync send sync" in terms
+
+
+def test_graph_expansion_skips_empty_graph():
+    from app.knowledge import KnowledgeGraph
+
+    retriever = make_retriever()
+    retriever.knowledge_graph = KnowledgeGraph([])
+
+    assert (
+        retriever._graph_expansion("Rc", {"enabled": True, "max_expansions": 2})
+        == []
+    )

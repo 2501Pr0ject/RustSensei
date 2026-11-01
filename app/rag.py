@@ -97,6 +97,7 @@ class RAGRetriever:
         self.model = None
         self.reranker = None
         self.bm25 = None
+        self.knowledge_graph = None
         self._load_index()
 
     def _load_index(self):
@@ -222,6 +223,45 @@ class RAGRetriever:
             self.bm25 = _BM25(texts)
         return self.bm25
 
+    def _get_knowledge_graph(self):
+        """Charge le graphe de connaissances (lazy loading)."""
+        if self.knowledge_graph is None:
+            from .knowledge import KnowledgeGraph
+
+            self.knowledge_graph = KnowledgeGraph.load()
+        return self.knowledge_graph
+
+    def _graph_expansion(self, query: str, knowledge_config: dict) -> list:
+        """
+        Termes d'expansion du graphe de connaissances (canal lexicale supplementaire).
+
+        Args:
+            query: Question de l'utilisateur.
+            knowledge_config: Section `knowledge` de la configuration.
+
+        Returns:
+            Liste de chaines, vide si le graphe est desactive ou sans correspondance.
+        """
+        if not knowledge_config.get("enabled", False):
+            return []
+        graph = self._get_knowledge_graph()
+        if graph.is_empty:
+            return []
+        max_expansions = int(knowledge_config.get("max_expansions", 3))
+        return graph.expand(query, max_expansions)
+
+    @staticmethod
+    def _fuse_channels(
+        channels: list[list[int]],
+        rrf_k: int = 60,
+    ) -> list[tuple[int, float]]:
+        """Fusionne N classements avec Reciprocal Rank Fusion."""
+        scores: dict[int, float] = {}
+        for ranked in channels:
+            for rank, idx in enumerate(ranked):
+                scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
+        return sorted(scores.items(), key=lambda item: item[1], reverse=True)
+
     @staticmethod
     def _fuse_rrf(
         dense_ranked: list[int],
@@ -230,14 +270,8 @@ class RAGRetriever:
         rrf_k: int = 60,
     ) -> list[tuple[int, float]]:
         """Fusionne deux classements avec Reciprocal Rank Fusion."""
-        scores: dict[int, float] = {}
-        for rank, idx in enumerate(dense_ranked):
-            scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
-        for rank, idx in enumerate(bm25_ranked):
-            scores[idx] = scores.get(idx, 0.0) + 1.0 / (rrf_k + rank + 1)
-
-        ranked = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        return ranked[:top_k]
+        fused = RAGRetriever._fuse_channels([dense_ranked, bm25_ranked], rrf_k)
+        return fused[:top_k]
 
     def _retrieve_hybrid(
         self, query: str, top_k: int, hybrid_config: dict
@@ -276,7 +310,22 @@ class RAGRetriever:
             int(idx) for idx in bm25_order if bm25_scores[int(idx)] > 0
         ]
 
-        fused = self._fuse_rrf(dense_ranked, bm25_ranked, candidate_k, rrf_k)
+        channels = [dense_ranked, bm25_ranked]
+
+        graph_terms = self._graph_expansion(query, self.config.get("knowledge", {}))
+        if graph_terms:
+            expanded_query = query + " " + " ".join(graph_terms)
+            expanded_scores = bm25.scores(expanded_query)
+            expanded_order = np.argsort(np.asarray(expanded_scores))[::-1]
+            channels.append(
+                [
+                    int(idx)
+                    for idx in expanded_order[:candidate_k]
+                    if expanded_scores[int(idx)] > 0
+                ]
+            )
+
+        fused = self._fuse_channels(channels, rrf_k)[:candidate_k]
 
         candidates = []
         for idx, rrf_score in fused:
