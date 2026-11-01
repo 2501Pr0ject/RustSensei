@@ -83,7 +83,8 @@ curl http://localhost:8000/cache/stats
 
 L'historique des échanges est transmis au backend (`/chat`, `/chat/stream` avec
 le champ `history` de type `{role, content}`, rôles `user`/`assistant` uniquement,
-plafonné à 6 messages). Le prompt est construit avec le format
+plafonné à 6 messages ; chaque message est tronqué à 666 caractères pour rester
+dans un budget de 4 000 caractères). Le prompt est construit avec le format
 `Conversation précédente :` juste avant la question courante, puis le contexte RAG.
 
 La clé de cache est composite (historique normalisé + question) : une réponse est
