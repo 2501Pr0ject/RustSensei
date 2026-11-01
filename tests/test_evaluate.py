@@ -176,3 +176,31 @@ def test_run_metadata_records_scorer_version():
     meta = run_metadata(config, use_rag=False, prompts_file=Path("eval/prompts_fr.jsonl"))
 
     assert meta["scorer_version"] == SCORER_VERSION == 2
+
+
+def test_parse_llama_cpp_version():
+    from evaluate import parse_llama_cpp_version
+
+    assert parse_llama_cpp_version("version: 4823 (5bbe6a9f)\nbuilt with clang") == "b4823 (5bbe6a9f)"
+    assert parse_llama_cpp_version("ggml_metal_init...\nversion: 12032 (a1b2c3d)") == "b12032 (a1b2c3d)"
+    assert (
+        parse_llama_cpp_version("version: 0.8.0-dev (build 12032, commit dde879bc4)")
+        == "b12032 (dde879bc4)"
+    )
+    assert parse_llama_cpp_version("pas de version") is None
+
+
+def test_run_metadata_records_llama_cpp_version_and_binary():
+    from pathlib import Path
+
+    from evaluate import run_metadata
+
+    config = {
+        "paths": {"model": "models/x.gguf", "llama_cli": "vendor/inexistant/llama-completion"},
+        "inference": {"seed": 1},
+    }
+
+    meta = run_metadata(config, use_rag=False, prompts_file=Path("eval/prompts_fr.jsonl"))
+
+    assert meta["llama_cli"] == "vendor/inexistant/llama-completion"
+    assert meta["llama_cpp_rev"] is None

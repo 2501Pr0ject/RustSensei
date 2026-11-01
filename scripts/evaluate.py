@@ -375,11 +375,41 @@ def _rag_settings() -> dict | None:
     }
 
 
+def parse_llama_cpp_version(output: str) -> str | None:
+    """Extrait "b<build> (<commit>)" de la sortie de `llama-* --version`."""
+    output = output or ""
+    # Ancien format : "version: 4823 (5bbe6a9f)"
+    match = re.search(r"version:\s*(\d+)\s*\(([0-9a-f]+)\)", output)
+    if not match:
+        # Format actuel : "version: 0.8.0-dev (build 12032, commit dde879bc4)"
+        match = re.search(r"build\s+(\d+),\s*commit\s+([0-9a-f]+)", output)
+    if not match:
+        return None
+    return f"b{match.group(1)} ({match.group(2)})"
+
+
+def llama_cpp_version(config: dict) -> str | None:
+    """Version de llama.cpp reellement utilisee (binaire de paths.llama_cli)."""
+    llama_cli = config["paths"].get("llama_cli")
+    if not llama_cli:
+        return None
+    binary = PROJECT_ROOT / llama_cli
+    try:
+        out = subprocess.run(
+            [str(binary), "--version"], capture_output=True, text=True, timeout=30
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return parse_llama_cpp_version(out.stdout + out.stderr)
+
+
 def run_metadata(config: dict, use_rag: bool, prompts_file: Path) -> dict:
     """Metadonnees de reproductibilite : modele reellement utilise, seed, code, RAG."""
     model_path = PROJECT_ROOT / config["paths"]["model"]
     return {
         "scorer_version": SCORER_VERSION,
+        "llama_cpp_rev": llama_cpp_version(config),
+        "llama_cli": config["paths"].get("llama_cli"),
         "model_path": str(config["paths"]["model"]),
         "model_size_bytes": model_path.stat().st_size if model_path.exists() else None,
         "seed": config["inference"].get("seed"),
@@ -402,7 +432,6 @@ def save_results(
         "mode": "rag" if use_rag else "baseline",
         "model": config["model"],
         "inference_params": config["inference"],
-        "llama_cpp_rev": "b4823",
         "total_prompts": len(results),
         **(metadata or {}),
         "results": results,
