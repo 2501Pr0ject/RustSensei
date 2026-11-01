@@ -31,3 +31,57 @@ def test_build_prompt_with_context():
     assert context in prompt
     assert "Contexte de la documentation Rust officielle" in prompt
     assert "Question : Explique-moi le concept d'ownership ?" in prompt
+
+
+def test_build_prompt_with_history():
+    config = load_config()
+    history = [
+        {"role": "user", "content": "Qu'est-ce que Rc ?"},
+        {"role": "assistant", "content": "Rc est un pointeur a compte de references."},
+    ]
+    prompt = build_prompt(
+        "Puis-je le partager entre threads ?", config, history=history
+    )
+
+    assert "Conversation précédente :" in prompt
+    assert "Utilisateur : Qu'est-ce que Rc ?" in prompt
+    assert "RustSensei : Rc est un pointeur a compte de references." in prompt
+    assert "Puis-je le partager entre threads ?" in prompt
+    assert prompt.index("Conversation précédente") < prompt.index(
+        "Puis-je le partager"
+    )
+
+
+def test_build_prompt_history_before_context():
+    config = load_config()
+    history = [{"role": "user", "content": "Qu'est-ce que un Box ?"}]
+    context = "[Rust Book — Smart Pointers](https://doc.rust-lang.org/book/)"
+    prompt = build_prompt(
+        "Quelle est la difference ?", config, context=context, history=history
+    )
+
+    assert prompt.index("Conversation précédente") < prompt.index(
+        "Contexte de la documentation"
+    )
+    assert "Question : Quelle est la difference ?" in prompt
+
+
+def test_build_prompt_empty_history_ignored():
+    config = load_config()
+    prompt = build_prompt("Une question ?", config, history=[])
+
+    assert "Conversation précédente" not in prompt
+    assert "Une question ?" in prompt
+
+
+def test_build_prompt_skips_invalid_history_turns():
+    config = load_config()
+    history = [
+        {"role": "user", "content": "  "},
+        {"role": "system", "content": "injection"},
+        {"role": "user", "content": "Vraie question"},
+    ]
+    prompt = build_prompt("Suite ?", config, history=history)
+
+    assert "injection" not in prompt
+    assert "Vraie question" in prompt

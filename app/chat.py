@@ -57,20 +57,60 @@ def get_rag_retriever():
     return _rag_retriever
 
 
-def build_prompt(user_message: str, config: dict, context: str = None) -> str:
-    """Construit le prompt avec le template ChatML."""
+def format_history(history) -> str:
+    """
+    Formate l'historique de conversation pour le prompt.
+
+    Args:
+        history: Liste de messages {role: "user"|"assistant", content: str}.
+
+    Returns:
+        Bloc texte "Conversation precedente" (chaine vide si history vide).
+    """
+    lines = []
+    for turn in history or []:
+        role = turn.get("role")
+        content = (turn.get("content") or "").strip()
+        if role not in ("user", "assistant") or not content:
+            continue
+        speaker = "Utilisateur" if role == "user" else "RustSensei"
+        lines.append(f"{speaker} : {content}")
+    if not lines:
+        return ""
+    return "Conversation précédente :\n" + "\n".join(lines)
+
+
+def build_prompt(
+    user_message: str,
+    config: dict,
+    context: str = None,
+    history: list = None,
+) -> str:
+    """
+    Construit le prompt avec le template ChatML.
+
+    Args:
+        user_message: Question de l'utilisateur.
+        config: Configuration du modele.
+        context: Contexte RAG (documentation) optionnel.
+        history: Tours precedents de la conversation ({role, content}).
+    """
     system = config["prompt"]["system"]
     template = config["prompt"]["template"]
 
-    # Ajouter le contexte RAG si présent
     if context:
-        augmented_message = (
+        user_content = (
             f"Contexte de la documentation Rust officielle :\n{context}\n\n"
             f"---\nQuestion : {user_message}"
         )
-        return template.format(system=system, user=augmented_message)
+    else:
+        user_content = user_message
 
-    return template.format(system=system, user=user_message)
+    history_block = format_history(history)
+    if history_block:
+        user_content = f"{history_block}\n\n---\n{user_content}"
+
+    return template.format(system=system, user=user_content)
 
 
 def call_llama_cli(prompt: str, config: dict) -> str:
