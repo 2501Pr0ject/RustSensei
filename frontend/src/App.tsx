@@ -86,7 +86,11 @@ export function App() {
   const [sending, setSending] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const conversationRef = useRef<HTMLElement>(null);
+  // Suivi automatique du bas de la conversation, suspendu quand l'utilisateur
+  // remonte pour relire (repris quand il revient en bas ou envoie un message).
+  const followBottomRef = useRef(true);
+  const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Hauteur auto de la zone de saisie (plafonnee par max-h, puis defilement).
@@ -101,9 +105,28 @@ export function App() {
     }
   }, [input]);
 
+  const scrollToBottom = () => {
+    const el = conversationRef.current;
+    if (el) {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
+
+  const handleConversationScroll = () => {
+    const el = conversationRef.current;
+    if (!el) {
+      return;
+    }
+    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    followBottomRef.current = atBottom;
+    setShowJumpToBottom(!atBottom);
+  };
+
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, sending, streaming]);
+    if (followBottomRef.current) {
+      scrollToBottom();
+    }
+  }, [messages, sending]);
 
   useEffect(() => {
     if (sending || streaming) {
@@ -142,6 +165,8 @@ export function App() {
       .map((m) => ({ role: m.role, content: m.content }));
     setInput("");
     setError(null);
+    followBottomRef.current = true;
+    setShowJumpToBottom(false);
     setMessages((prev) => [
       ...prev,
       { role: "user", content: text },
@@ -274,70 +299,86 @@ export function App() {
         <p role="status" className="sr-only">
           {statusMessage}
         </p>
-        <section
-          aria-label="Conversation"
-          aria-busy={streaming}
-          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
-        >
-          {messages.map((m, i) => (
-            <div
-              key={i}
-              className={`min-w-0 rounded-2xl px-4 py-3 ${
-                m.role === "user"
-                  ? "max-w-[85%] self-end rounded-br-md border bg-green-400/10 text-green-300"
-                  : "w-full self-start rounded-bl-md border-green-400/30 bg-transparent text-green-400"
-              }`}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <section
+            ref={conversationRef}
+            onScroll={handleConversationScroll}
+            aria-label="Conversation"
+            aria-busy={streaming}
+            className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
+          >
+            {messages.map((m, i) => (
+              <div
+                key={i}
+                className={`min-w-0 rounded-2xl px-4 py-3 ${
+                  m.role === "user"
+                    ? "max-w-[85%] self-end rounded-br-md border bg-green-400/10 text-green-300"
+                    : "w-full self-start rounded-bl-md border-green-400/30 bg-transparent text-green-400"
+                }`}
+              >
+                {m.role === "assistant" ? (
+                  <div className="rust-response text-base leading-relaxed">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                      {m.content}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <p className="whitespace-pre-wrap text-base [overflow-wrap:anywhere]">{m.content}</p>
+                )}
+                {m.role === "assistant" && m.cached ? (
+                  <div className="mb-1 text-xs text-green-500/70">
+                    <span className="rounded-full border border-green-400/30 px-2 py-0.5">
+                      réponse servie depuis le cache
+                    </span>
+                  </div>
+                ) : null}
+                {m.citations && m.citations.length > 0 ? (
+                  <div className="mt-2 text-xs text-green-500/70">
+                    Sources :{" "}
+                    {m.citations.map((citation, index) => {
+                      const { label, url } = splitCitation(citation);
+                      return (
+                        <span key={citation}>
+                          {index > 0 ? ", " : ""}
+                          {url ? (
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="underline decoration-green-500/40 underline-offset-2 hover:text-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
+                            >
+                              {label}
+                            </a>
+                          ) : (
+                            label
+                          )}
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            ))}
+            {showThinking ? (
+              <div className="self-start rounded-2xl rounded-bl-sm border border-green-400/30 px-4 py-3 text-green-500">
+                <span className="animate-pulse">RustSensei réfléchit...</span>
+              </div>
+            ) : null}
+          </section>
+          {showJumpToBottom ? (
+            <button
+              type="button"
+              onClick={() => {
+                followBottomRef.current = true;
+                setShowJumpToBottom(false);
+                scrollToBottom();
+              }}
+              className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-green-400/60 bg-[#020603] px-3 py-1.5 text-xs text-green-300 shadow-lg hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
             >
-              {m.role === "assistant" ? (
-                <div className="rust-response text-base leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
-                    {m.content}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <p className="whitespace-pre-wrap text-base [overflow-wrap:anywhere]">{m.content}</p>
-              )}
-              {m.role === "assistant" && m.cached ? (
-                <div className="mb-1 text-xs text-green-500/70">
-                  <span className="rounded-full border border-green-400/30 px-2 py-0.5">
-                    réponse servie depuis le cache
-                  </span>
-                </div>
-              ) : null}
-              {m.citations && m.citations.length > 0 ? (
-                <div className="mt-2 text-xs text-green-500/70">
-                  Sources :{" "}
-                  {m.citations.map((citation, index) => {
-                    const { label, url } = splitCitation(citation);
-                    return (
-                      <span key={citation}>
-                        {index > 0 ? ", " : ""}
-                        {url ? (
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="underline decoration-green-500/40 underline-offset-2 hover:text-green-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
-                          >
-                            {label}
-                          </a>
-                        ) : (
-                          label
-                        )}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-          ))}
-          {showThinking ? (
-            <div className="self-start rounded-2xl rounded-bl-sm border border-green-400/30 px-4 py-3 text-green-500">
-              <span className="animate-pulse">RustSensei réfléchit...</span>
-            </div>
+              ↓ {streaming ? "Suivre la réponse" : "Bas de la conversation"}
+            </button>
           ) : null}
-          <div ref={bottomRef} />
-        </section>
+        </div>
 
         <form
           className="flex shrink-0 items-end gap-2 pt-2"
