@@ -8,6 +8,7 @@ interface ChatMessage {
   content: string;
   citations?: string[];
   cached?: boolean;
+  interrupted?: boolean;
 }
 
 const API_URL = "";
@@ -47,6 +48,9 @@ function loadPersistedHistory(): ChatMessage[] {
         }
         if (m.cached === true) {
           message.cached = true;
+        }
+        if (m.interrupted === true) {
+          message.interrupted = true;
         }
         return message;
       });
@@ -92,6 +96,7 @@ export function App() {
   const followBottomRef = useRef(true);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
   // Hauteur auto de la zone de saisie (plafonnee par max-h, puis defilement).
   useEffect(() => {
@@ -141,11 +146,12 @@ export function App() {
       localStorage.setItem(
         HISTORY_STORAGE_KEY,
         JSON.stringify(
-          turns.map(({ role, content, citations, cached }) => ({
+          turns.map(({ role, content, citations, cached, interrupted }) => ({
             role,
             content,
             ...(citations?.length ? { citations } : {}),
             ...(cached ? { cached } : {}),
+            ...(interrupted ? { interrupted } : {}),
           })),
         ),
       );
@@ -174,12 +180,15 @@ export function App() {
     ]);
     setSending(true);
     setStreaming(true);
+    const controller = new AbortController();
+    abortRef.current = controller;
 
     try {
       const res = await fetch(`${API_URL}/chat/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, use_rag: useRag, history }),
+        signal: controller.signal,
       });
       if (!res.ok) {
         let detail = "";
@@ -232,8 +241,22 @@ export function App() {
         return next;
       });
     } catch {
-      setError("Impossible de joindre le backend RustSensei. Lancez `make api`.");
+      if (controller.signal.aborted) {
+        // Arret volontaire : on garde le debut de reponse, marque comme interrompu.
+        // La fermeture de la connexion arrete aussi la generation cote serveur.
+        setMessages((prev) => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last?.role === "assistant" && last.content) {
+            next[next.length - 1] = { ...last, interrupted: true };
+          }
+          return next;
+        });
+      } else {
+        setError("Impossible de joindre le backend RustSensei. Lancez `make api`.");
+      }
     } finally {
+      abortRef.current = null;
       // En cas d'erreur, retirer la bulle assistant restee vide.
       setMessages((prev) => {
         const last = prev[prev.length - 1];
@@ -251,7 +274,9 @@ export function App() {
   const statusMessage = sending
     ? "RustSensei rédige sa réponse…"
     : lastMessage?.role === "assistant" && lastMessage.content
-      ? "Réponse de RustSensei reçue."
+      ? lastMessage.interrupted
+        ? "Réponse interrompue."
+        : "Réponse de RustSensei reçue."
       : "";
 
   const clearChat = () => {
@@ -325,7 +350,10 @@ export function App() {
                 ) : (
                   <p className="whitespace-pre-wrap text-base [overflow-wrap:anywhere]">{m.content}</p>
                 )}
-                {m.role === "assistant" && m.cached ? (
+                {m.role === "assistant" && m.interrupted ? (
+                <div className="mt-1 text-xs text-yellow-400/80">réponse interrompue</div>
+              ) : null}
+              {m.role === "assistant" && m.cached ? (
                   <div className="mb-1 text-xs text-green-500/70">
                     <span className="rounded-full border border-green-400/30 px-2 py-0.5">
                       réponse servie depuis le cache
@@ -409,13 +437,23 @@ export function App() {
             placeholder="Votre question Rust…"
             className="max-h-[40vh] min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-base text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
           />
-          <button
-            type="submit"
-            disabled={sending || !input.trim()}
-            className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-base font-medium text-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
-          >
-            Envoyer
-          </button>
+          {sending ? (
+            <button
+              type="button"
+              onClick={() => abortRef.current?.abort()}
+              className="rounded-xl border border-yellow-400/70 px-4 py-2.5 font-mono text-base font-medium text-yellow-300 hover:bg-yellow-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-yellow-400/60"
+            >
+              Stop
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim()}
+              className="rounded-xl bg-green-400 px-4 py-2.5 font-mono text-base font-medium text-black disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
+            >
+              Envoyer
+            </button>
+          )}
         </form>
         <p id="input-hint" className="hidden shrink-0 text-xs text-green-500/60 pointer-fine:block">
           Entrée pour envoyer · Maj+Entrée pour un saut de ligne (code multi-ligne)
