@@ -140,4 +140,4 @@ def test_repository_prompts_mark_lora_overlap():
 
     prompts = Path(__file__).parent.parent / "eval" / "prompts_fr.jsonl"
 
-    assert len(held_out_ids(prompts)) == 91 - 15
+    assert len(held_out_ids(prompts)) == 91 - 27
