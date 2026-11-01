@@ -26,6 +26,7 @@ make chat
 - **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF, graphe de connaissances et rerank multilingue
 - **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
+- **Conversation multi-tours** - Historique (3 derniers échanges) envoyé au modèle contextuel
 - **Compilation : 61%** - Évaluation auto sur 50 prompts
 - **Français** - Réponses pédagogiques en français (100%)
 
@@ -76,6 +77,23 @@ Statistiques du cache :
 curl http://localhost:8000/cache/stats
 # {"entries": 4, "hits": 3, "misses": 1, "hit_rate": 0.75,
 #  "semantic_enabled": true, "semantic_threshold": 0.85, ...}
+```
+
+### Conversation multi-tours
+
+L'historique des échanges est transmis au backend (`/chat`, `/chat/stream` avec
+le champ `history` de type `{role, content}`, rôles `user`/`assistant` uniquement,
+plafonné à 6 messages). Le prompt est construit avec le format
+`Conversation précédente :` juste avant la question courante, puis le contexte RAG.
+
+La clé de cache est composite (historique normalisé + question) : une réponse est
+servie depuis le cache uniquement si l'historique et la question correspondent
+exactement. Le matching sémantique (similarité) est désactivé en multi-tours.
+
+```bash
+curl -s -X POST http://localhost:8000/chat/stream \
+  -H 'Content-Type: application/json' \
+  -d '{"message":"Puis je le partager entre deux threads ?", "use_rag": true, "history": [{"role":"user","content":"Qu est ce qu un Rc ?"}]}'
 ```
 
 ## Utilisation
