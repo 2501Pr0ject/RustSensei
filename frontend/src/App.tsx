@@ -117,7 +117,17 @@ export function App() {
         body: JSON.stringify({ message: text, use_rag: useRag, history }),
       });
       if (!res.ok) {
-        throw new Error(`Erreur streaming: ${res.status}`);
+        let detail = "";
+        try {
+          const body = await res.json();
+          if (typeof body?.detail === "string") {
+            detail = ` : ${body.detail}`;
+          }
+        } catch {
+          // corps non JSON : on garde le seul code HTTP
+        }
+        setError(`Le backend a répondu une erreur (${res.status})${detail}.`);
+        return;
       }
       const citations = readCitations(res);
       const cached = res.headers.get("X-Cache") === "HIT";
@@ -159,6 +169,11 @@ export function App() {
     } catch {
       setError("Impossible de joindre le backend RustSensei. Lancez `make api`.");
     } finally {
+      // En cas d'erreur, retirer la bulle assistant restee vide.
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        return last?.role === "assistant" && last.content === "" ? prev.slice(0, -1) : prev;
+      });
       setSending(false);
       setStreaming(false);
     }
