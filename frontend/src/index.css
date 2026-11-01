@@ -51,6 +51,15 @@
   font-size: 0.875rem;
   color: #4ade80;
 }
+.rust-response .code-block {
+  margin-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.rust-response .code-block pre {
+  margin: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
 .rust-response pre code {
   background-color: transparent;
   padding: 0;

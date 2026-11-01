@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 
@@ -59,6 +59,73 @@ function loadPersistedHistory(): ChatMessage[] {
     return [];
   }
 }
+
+async function copyText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // navigator.clipboard exige un contexte securise (https ou localhost) :
+    // repli sur execCommand, par exemple pour un acces via l'IP du reseau local.
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.setAttribute("readonly", "");
+    area.style.position = "fixed";
+    area.style.opacity = "0";
+    document.body.appendChild(area);
+    area.select();
+    try {
+      return document.execCommand("copy");
+    } catch {
+      return false;
+    } finally {
+      document.body.removeChild(area);
+    }
+  }
+}
+
+// Bloc de code avec barre d'outils : langage + bouton Copier.
+const CodeBlock: Components["pre"] = ({ node, children, ...props }) => {
+  const preRef = useRef<HTMLPreElement>(null);
+  const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
+
+  const code = node?.children[0];
+  const classNames =
+    code && code.type === "element" && Array.isArray(code.properties.className)
+      ? code.properties.className
+      : [];
+  const language = classNames
+    .map(String)
+    .find((name) => name.startsWith("language-"))
+    ?.slice("language-".length);
+
+  const onCopy = async () => {
+    const ok = await copyText(preRef.current?.innerText ?? "");
+    setState(ok ? "copied" : "failed");
+    window.setTimeout(() => setState("idle"), 2000);
+  };
+
+  return (
+    <div className="code-block">
+      <div className="flex items-center justify-between rounded-t-lg border-b border-green-400/15 bg-[#02120b] px-3 py-1 text-xs text-green-500/70">
+        <span>{language ?? "code"}</span>
+        <button
+          type="button"
+          onClick={() => void onCopy()}
+          aria-label="Copier le code"
+          className="rounded px-2 py-1 text-green-300 hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
+        >
+          {state === "copied" ? "Copié ✓" : state === "failed" ? "Échec de la copie" : "Copier"}
+        </button>
+      </div>
+      <pre ref={preRef} {...props}>
+        {children}
+      </pre>
+    </div>
+  );
+};
+
+const markdownComponents: Components = { pre: CodeBlock };
 
 function splitCitation(citation: string): { label: string; url?: string } {
   const match = citation.match(/^\[([^\]]+)\]\((.+)\)$/);
@@ -343,7 +410,11 @@ export function App() {
               >
                 {m.role === "assistant" ? (
                   <div className="rust-response text-base leading-relaxed">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={markdownComponents}
+                    >
                       {m.content}
                     </ReactMarkdown>
                   </div>
