@@ -90,6 +90,10 @@ La clé de cache est composite (historique normalisé + question) : une réponse
 servie depuis le cache uniquement si l'historique et la question correspondent
 exactement. Le matching sémantique (similarité) est désactivé en multi-tours.
 
+L'historique est persisté dans le navigateur (`localStorage`, clé
+`rustsensei_history`, 6 derniers messages) et restauré au chargement de la page.
+Le bouton « Effacer » repart d'une conversation vide.
+
 ```bash
 curl -s -X POST http://localhost:8000/chat/stream \
   -H 'Content-Type: application/json' \
