@@ -240,9 +240,11 @@ export function App() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#020603] font-mono text-green-400">
-      <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-2 p-2">
-        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-green-400/20 pb-2">
+    // Hauteur fixe (dvh = viewport reel sur mobile) : seule la conversation defile,
+    // l'en-tete et la zone de saisie restent visibles.
+    <div className="flex h-dvh flex-col bg-[#020603] font-mono text-green-400">
+      <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 p-2">
+        <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-green-400/20 pb-2">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-green-400">RustSensei</h1>
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -338,7 +340,7 @@ export function App() {
         </section>
 
         <form
-          className="flex items-end gap-2 pt-2"
+          className="flex shrink-0 items-end gap-2 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
@@ -374,11 +376,11 @@ export function App() {
             Envoyer
           </button>
         </form>
-        <p id="input-hint" className="hidden text-xs text-green-500/60 pointer-fine:block">
+        <p id="input-hint" className="hidden shrink-0 text-xs text-green-500/60 pointer-fine:block">
           Entrée pour envoyer · Maj+Entrée pour un saut de ligne (code multi-ligne)
         </p>
         {error ? (
-          <p role="alert" className="text-sm text-red-400">
+          <p role="alert" className="shrink-0 text-sm text-red-400">
             {error}
           </p>
         ) : null}
