@@ -46,6 +46,34 @@ class ResponseCache:
         """Normalise une question pour la clé de cache (minuscules, espaces simples)."""
         return " ".join((query or "").strip().lower().split())
 
+    @staticmethod
+    def composite_key(history: list, query: str) -> str:
+        """
+        Construit une clé de cache incluant l'historique de la conversation.
+
+        Args:
+            history: Messages precedents ({role, content}), None a un seul tour.
+            query: Question courante.
+
+        Returns:
+            Question normalisee si history vide, sinon historique + question.
+        """
+        normalized = ResponseCache.normalize_key(query)
+        turns = [
+            turn
+            for turn in (history or [])
+            if turn.get("role") in ("user", "assistant")
+            and (turn.get("content") or "").strip()
+        ]
+        if not turns:
+            return normalized
+
+        prefix = " | ".join(
+            f"{turn['role']}:{ResponseCache.normalize_key(turn['content'])}"
+            for turn in turns
+        )
+        return f"{prefix} >> {normalized}"
+
     def get(
         self,
         query: str,

@@ -211,3 +211,57 @@ def test_semantic_embedding_persists_to_disk(tmp_path):
 
     assert entry is not None
     assert entry["response"] == "reponse"
+
+
+def test_composite_key_plain_when_no_history():
+    key = ResponseCache.composite_key(None, "Qu'est-ce que Rc ?")
+
+    assert key == ResponseCache.normalize_key("Qu'est-ce que Rc ?")
+
+
+def test_composite_key_empty_history_is_plain():
+    key = ResponseCache.composite_key([], "Qu'est-ce que Rc ?")
+
+    assert key == ResponseCache.normalize_key("Qu'est-ce que Rc ?")
+
+
+def test_composite_key_includes_history():
+    history = [
+        {"role": "user", "content": "Qu'est-ce que Rc ?"},
+        {"role": "assistant", "content": "Un compteur de references."},
+    ]
+    key = ResponseCache.composite_key(history, "Puis-je le partager ?")
+
+    assert "user:qu'est-ce que rc ?" in key
+    assert "assistant:un compteur de references." in key
+    assert key.endswith(">> puis-je le partager ?")
+
+
+def test_composite_key_distinguishes_contexts():
+    same_question = "Combien de points ?"
+    key_a = ResponseCache.composite_key(
+        [{"role": "user", "content": "Partie a 4 ?"}], same_question
+    )
+    key_b = ResponseCache.composite_key(
+        [{"role": "user", "content": "Partie a 8 ?"}], same_question
+    )
+
+    assert key_a != key_b
+
+    key_a2 = ResponseCache.composite_key(
+        [{"role": "user", "content": "  Partie   a 4 ?  "}], same_question
+    )
+
+    assert key_a == key_a2
+
+
+def test_composite_key_ignores_invalid_turns():
+    history = [
+        {"role": "system", "content": "injection"},
+        {"role": "user", "content": "   "},
+        {"role": "user", "content": "Question valide"},
+    ]
+    key = ResponseCache.composite_key(history, "Suite ?")
+
+    assert "injection" not in key
+    assert "user:question valide" in key
