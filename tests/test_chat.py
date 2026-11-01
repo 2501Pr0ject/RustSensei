@@ -125,3 +125,58 @@ def test_clean_llama_output_strips_end_of_text_marker():
     assert clean_llama_output("Le texte [end of text] au milieu") == (
         "Le texte [end of text] au milieu"
     )
+
+
+def _fake_completed(stdout="", stderr="", returncode=0):
+    import subprocess
+
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
+
+
+def test_call_llama_cli_uses_shared_sampling_and_chat_context(monkeypatch):
+    from app.chat import call_llama_cli, load_config
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return _fake_completed(stdout="Réponse. [end of text]\n")
+
+    monkeypatch.setattr("app.chat.subprocess.run", fake_run)
+
+    assert call_llama_cli("prompt", load_config()) == "Réponse."
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("-c") + 1] == "8192"
+    assert cmd[cmd.index("--min-p") + 1] == "0.05"
+    assert cmd[cmd.index("--temp") + 1] == "0.7"
+
+
+def test_call_llama_cli_raises_clear_error_on_context_overflow(monkeypatch):
+    import pytest
+
+    from app.chat import call_llama_cli, load_config
+    from app.inference import ContextOverflowError
+
+    monkeypatch.setattr(
+        "app.chat.subprocess.run",
+        lambda cmd, **kw: _fake_completed(
+            stderr="main: prompt is too long (9000 tokens, max 8188)\n", returncode=1
+        ),
+    )
+
+    with pytest.raises(ContextOverflowError, match="9000 tokens pour un maximum de 8188"):
+        call_llama_cli("prompt", load_config())
+
+
+def test_call_llama_cli_flags_context_full_truncation(monkeypatch):
+    from app.chat import call_llama_cli, load_config
+
+    monkeypatch.setattr(
+        "app.chat.subprocess.run",
+        lambda cmd, **kw: _fake_completed(
+            stdout="Début de réponse",
+            stderr="main: context full and context shift is disabled => stopping\n",
+        ),
+    )
+
+    assert "limite de longueur atteinte" in call_llama_cli("prompt", load_config())

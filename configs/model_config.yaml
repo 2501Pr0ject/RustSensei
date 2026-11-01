@@ -15,16 +15,30 @@ model:
   quantization: "Q4_K_M"
 
 # Paramètres llama-cli
+# Source unique de l'échantillonnage : évaluation (llama-completion), CLI et
+# /chat (llama-completion), UI (llama-server) lisent ces valeurs (app/inference.py).
 inference:
-  n_ctx: 4096         # Taille du contexte
+  n_ctx: 4096         # Contexte de l'évaluation (prompt unique, sans historique)
+  n_ctx_chat: 8192    # Contexte de l'UI, de /chat et du CLI (historique de conversation)
   n_predict: 1024     # Tokens max à générer
   threads: 8          # Threads CPU
   n_gpu_layers: 99    # Couches sur GPU (99 = toutes)
   temp: 0.7           # Température
   top_p: 0.9
   top_k: 40
+  min_p: 0.05         # Valeur par défaut de llama.cpp, rendue explicite
   repeat_penalty: 1.1
   seed: 42            # Seed pour reproductibilité (éval)
+
+# Réglages d'échantillonnage par modèle (clé = nom du fichier GGUF). Ils
+# surchargent `inference` pour ce modèle ; clés possibles : temp, top_k, top_p,
+# min_p, repeat_penalty, n_predict. Vide = valeurs ci-dessus pour tous.
+# Exemple (réglages recommandés par Qwen, à n'activer que si le 4B est retenu) :
+#   Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf:
+#     top_k: 20
+#     top_p: 0.8
+#     min_p: 0.0
+sampling_by_model: {}
 
 # Prompt système
 prompt:

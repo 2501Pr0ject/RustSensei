@@ -423,3 +423,139 @@ def test_stream_rag_unavailable_returns_503(monkeypatch):
 
     assert response.status_code == 503
     assert response.json()["detail"] == "RAG indisponible: index absent"
+
+
+def test_stream_context_overflow_returns_413(monkeypatch):
+    from app.inference import ContextOverflowError
+
+    async def fake_stream(config, user_content, system_prompt):
+        raise ContextOverflowError("La question, l'historique et la documentation dépassent le contexte du modèle (9100 tokens pour un maximum de 8192). Effacez la conversation ou raccourcissez la question.")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    response = client.post("/chat/stream", json={"message": "Question"})
+
+    assert response.status_code == 413
+    assert "9100 tokens pour un maximum de 8192" in response.json()["detail"]
+
+
+def test_stream_server_failure_returns_503(monkeypatch):
+    async def fake_stream(config, user_content, system_prompt):
+        raise RuntimeError("llama-server did not start in time")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    response = client.post("/chat/stream", json={"message": "Question"})
+
+    assert response.status_code == 503
+    assert "Génération indisponible" in response.json()["detail"]
+
+
+def test_chat_context_overflow_returns_413(monkeypatch):
+    from app.inference import ContextOverflowError
+
+    def overflow(prompt, config):
+        raise ContextOverflowError("contexte dépassé")
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api.call_llama_cli", overflow)
+
+    response = client.post("/chat", json={"message": "Question"})
+
+    assert response.status_code == 413
+    assert response.json()["detail"] == "contexte dépassé"
+
+
+def _patch_llama_server(monkeypatch, handler, captured):
+    import httpx
+
+    class FakeProc:
+        def terminate(self):
+            pass
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            pass
+
+    def fake_popen(args, **kwargs):
+        captured["args"] = args
+        return FakeProc()
+
+    real_client = httpx.AsyncClient
+    monkeypatch.setattr("app.api.subprocess.Popen", fake_popen)
+    monkeypatch.setattr(
+        httpx, "AsyncClient",
+        lambda *a, **k: real_client(transport=httpx.MockTransport(handler), **k),
+    )
+
+
+def _collect(gen):
+    import asyncio
+
+    async def run():
+        return [token async for token in gen]
+
+    return asyncio.run(run())
+
+
+def test_llama_server_gets_eval_sampling_context_and_flags_length(monkeypatch):
+    import httpx
+
+    from app.api import _stream_llama_response
+    from app.chat import load_config
+
+    captured = {}
+
+    def handler(request):
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"status": "ok"})
+        captured["body"] = json.loads(request.content)
+        sse = (
+            'data: {"choices":[{"delta":{"content":"Bon"}}]}\n\n'
+            'data: {"choices":[{"delta":{"content":"jour"},"finish_reason":"length"}]}\n\n'
+            "data: [DONE]\n\n"
+        )
+        return httpx.Response(200, text=sse)
+
+    _patch_llama_server(monkeypatch, handler, captured)
+
+    tokens = _collect(_stream_llama_response(load_config(), "Q", "S"))
+
+    args = captured["args"]
+    assert args[args.index("-c") + 1] == "8192"
+    assert args[args.index("--parallel") + 1] == "1"
+    body = captured["body"]
+    assert {k: body[k] for k in ("temperature", "top_k", "top_p", "min_p", "repeat_penalty", "max_tokens")} == {
+        "temperature": 0.7, "top_k": 40, "top_p": 0.9, "min_p": 0.05, "repeat_penalty": 1.1, "max_tokens": 1024,
+    }
+    assert tokens[:2] == ["Bon", "jour"]
+    assert "limite de longueur atteinte" in tokens[2]
+
+
+def test_llama_server_context_error_becomes_overflow(monkeypatch):
+    import httpx
+    import pytest
+
+    from app.api import _stream_llama_response
+    from app.chat import load_config
+    from app.inference import ContextOverflowError
+
+    def handler(request):
+        if request.url.path == "/health":
+            return httpx.Response(200, json={"status": "ok"})
+        return httpx.Response(400, json={"error": {
+            "code": 400,
+            "type": "exceed_context_size_error",
+            "message": "request (9100 tokens) exceeds the available context size (8192 tokens), try increasing it",
+        }})
+
+    _patch_llama_server(monkeypatch, handler, {})
+
+    with pytest.raises(ContextOverflowError, match="9100 tokens pour un maximum de 8192"):
+        _collect(_stream_llama_response(load_config(), "Q", "S"))

@@ -13,6 +13,14 @@ from rich.panel import Panel
 from rich.prompt import Prompt
 
 from .cache import ResponseCache, response_cache
+from .inference import (
+    LENGTH_LIMIT_NOTE,
+    ContextOverflowError,
+    chat_ctx_size,
+    cli_sampling_args,
+    overflow_message,
+    sampling_params,
+)
 
 console = Console()
 
@@ -165,25 +173,30 @@ def clean_llama_output(text: str) -> str:
 
 
 def call_llama_cli(prompt: str, config: dict) -> str:
-    """Appelle llama-cli et retourne la réponse."""
+    """
+    Genere une reponse avec llama-completion (CLI et /chat).
+
+    Echantillonnage et taille de contexte viennent de la configuration partagee
+    (app/inference.py), comme pour l'UI et l'evaluation.
+
+    Raises:
+        ContextOverflowError: si le prompt ne tient pas dans le contexte.
+    """
     llama_cli = PROJECT_ROOT / config["paths"]["llama_cli"]
     model_path = PROJECT_ROOT / config["paths"]["model"]
     inf = config["inference"]
+    params = sampling_params(config)
 
     cmd = [
         str(llama_cli),
         "-m", str(model_path),
         "-p", prompt,
-        "-n", str(inf.get("n_predict", 1024)),
-        "-c", str(inf.get("n_ctx", 4096)),
+        "-c", str(chat_ctx_size(config)),
         "-t", str(inf.get("threads", 8)),
         "-ngl", str(inf.get("n_gpu_layers", 99)),
-        "--temp", str(inf.get("temp", 0.7)),
-        "--top-p", str(inf.get("top_p", 0.9)),
-        "--top-k", str(inf.get("top_k", 40)),
-        "--repeat-penalty", str(inf.get("repeat_penalty", 1.1)),
+        *cli_sampling_args(params),
         "--no-display-prompt",
-        "-no-cnv",  # Disable llama.cpp's conversation mode (we handle it ourselves)
+        "-no-cnv",  # Generation brute : le template est applique par build_prompt
     ]
 
     try:
@@ -193,11 +206,21 @@ def call_llama_cli(prompt: str, config: dict) -> str:
             text=True,
             timeout=120,
         )
-        return clean_llama_output(result.stdout)
     except subprocess.TimeoutExpired:
         return "[Timeout - la génération a pris trop de temps]"
     except Exception as e:
         return f"[Erreur: {e}]"
+
+    if "prompt is too long" in result.stderr:
+        error_line = next(
+            line for line in result.stderr.splitlines() if "prompt is too long" in line
+        )
+        raise ContextOverflowError(overflow_message(error_line))
+
+    response = clean_llama_output(result.stdout)
+    if "context full" in result.stderr:
+        response += LENGTH_LIMIT_NOTE
+    return response
 
 
 def chat_loop(use_rag: bool = False):
@@ -286,7 +309,12 @@ def chat_loop(use_rag: bool = False):
                 full_prompt = build_prompt(
                     user_input, config, context=context, history=history[:-1]
                 )
-                response = call_llama_cli(full_prompt, config)
+                try:
+                    response = call_llama_cli(full_prompt, config)
+                except ContextOverflowError as e:
+                    console.print(f"[yellow]{e}[/yellow]")
+                    history.pop()  # la question n'a pas ete traitee
+                    continue
 
                 if retriever:
                     response_cache.set(

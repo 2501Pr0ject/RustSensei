@@ -26,6 +26,14 @@ from .chat import (
     load_config,
     truncate_history_content,
 )
+from .inference import (
+    LENGTH_LIMIT_NOTE,
+    ContextOverflowError,
+    chat_ctx_size,
+    overflow_message,
+    sampling_params,
+    server_payload_sampling,
+)
 from .rag import check_rag_available
 
 app = FastAPI(
@@ -118,6 +126,12 @@ async def _stream_llama_response(
             "127.0.0.1",
             "--port",
             str(port),
+            # Contexte de conversation (historique compris) ; un seul emplacement
+            # de requete pour qu'elle dispose de tout ce contexte.
+            "-c",
+            str(chat_ctx_size(config)),
+            "--parallel",
+            "1",
         ],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
@@ -153,8 +167,19 @@ async def _stream_llama_response(
                         {"role": "user", "content": user_content},
                     ],
                     "stream": True,
+                    # Meme echantillonnage que l'evaluation (source unique)
+                    **server_payload_sampling(sampling_params(config)),
                 },
             ) as response:
+                if response.status_code != 200:
+                    body = (await response.aread()).decode("utf-8", errors="replace")
+                    try:
+                        error = json.loads(body).get("error", body)
+                    except (json.JSONDecodeError, AttributeError):
+                        error = body
+                    raise _llama_server_error(error)
+
+                finish_reason = None
                 async for line in response.aiter_lines():
                     line = line.strip()
                     if not line.startswith("data: "):
@@ -166,16 +191,44 @@ async def _stream_llama_response(
                         chunk = json.loads(payload)
                     except json.JSONDecodeError:
                         continue
-                    delta = (chunk.get("choices") or [{}])[0].get("delta") or {}
-                    content = delta.get("content") or ""
+                    if "error" in chunk:
+                        raise _llama_server_error(chunk["error"])
+                    choice = (chunk.get("choices") or [{}])[0]
+                    finish_reason = choice.get("finish_reason") or finish_reason
+                    content = (choice.get("delta") or {}).get("content") or ""
                     if content:
                         yield content
+
+                # Pas de troncature silencieuse : limite de tokens ou contexte plein
+                if finish_reason == "length":
+                    yield LENGTH_LIMIT_NOTE
     finally:
         proc.terminate()
         try:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+
+
+def _llama_server_error(error) -> Exception:
+    """Convertit une erreur de llama-server en exception explicite."""
+    if isinstance(error, dict):
+        message = str(error.get("message") or error)
+        error_type = error.get("type")
+    else:
+        message = str(error)
+        error_type = None
+    if error_type == "exceed_context_size_error" or "context size" in message:
+        return ContextOverflowError(overflow_message(message))
+    return RuntimeError(f"llama-server : {message}")
+
+
+def _generate(prompt: str, config: dict) -> str:
+    """Generation llama-completion ; depassement de contexte -> HTTP 413."""
+    try:
+        return call_llama_cli(prompt, config)
+    except ContextOverflowError as e:
+        raise HTTPException(status_code=413, detail=str(e)) from e
 
 
 async def _sleep(seconds: float) -> None:
@@ -241,7 +294,7 @@ def chat(request: ChatRequest) -> ChatResponse:
                 context = retriever.format_context(chunks)
                 citations = retriever.get_citations(chunks)
 
-            response = call_llama_cli(
+            response = _generate(
                 build_prompt(
                     request.message,
                     config,
@@ -255,7 +308,7 @@ def chat(request: ChatRequest) -> ChatResponse:
             )
 
     if response is None:
-        response = call_llama_cli(
+        response = _generate(
             build_prompt(
                 request.message,
                 config,
@@ -319,18 +372,38 @@ async def chat_stream(request: ChatRequest):
     if citations:
         headers["X-Citations"] = _encode_citations(citations)
 
+    # La generation demarre avant l'envoi des en-tetes : une erreur (contexte
+    # depasse, llama-server indisponible) devient un vrai code HTTP avec un
+    # message clair, au lieu d'une reponse vide ou tronquee.
+    upstream = None
+    first_token = ""
+    if cached is None:
+        user_content = build_user_content(
+            request.message, context=context, history=history
+        )
+        upstream = _stream_llama_response(
+            config, user_content, config["prompt"]["system"]
+        )
+        try:
+            first_token = await upstream.__anext__()
+        except StopAsyncIteration:
+            first_token = ""
+        except ContextOverflowError as e:
+            raise HTTPException(status_code=413, detail=str(e)) from e
+        except RuntimeError as e:
+            raise HTTPException(
+                status_code=503, detail=f"Génération indisponible : {e}"
+            ) from e
+
     async def token_stream():
         if cached is not None:
             yield cached["response"]
             return
 
-        full_response = ""
-        user_content = build_user_content(
-            request.message, context=context, history=history
-        )
-        async for token in _stream_llama_response(
-            config, user_content, config["prompt"]["system"]
-        ):
+        full_response = first_token
+        if first_token:
+            yield first_token
+        async for token in upstream:
             full_response += token
             yield token
 
