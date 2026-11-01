@@ -120,7 +120,9 @@ def call_llama_cli(prompt: str, config: dict) -> str:
             text=True,
             timeout=120,  # 2 minutes max
         )
-        return result.stdout.strip()
+        from app.chat import clean_llama_output
+
+        return clean_llama_output(result.stdout)
     except subprocess.TimeoutExpired:
         return "[TIMEOUT]"
     except Exception as e:
