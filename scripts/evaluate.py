@@ -8,9 +8,11 @@ Supporte le mode RAG pour comparaison baseline vs RAG.
 import argparse
 import copy
 import json
+import re
 import statistics
 import subprocess
 import sys
+import unicodedata
 from datetime import datetime
 from pathlib import Path
 
@@ -131,6 +133,54 @@ def call_llama_cli(prompt: str, config: dict) -> str:
         return f"[ERROR: {e}]"
 
 
+# Version du scoring : a incrementer a chaque changement de notation, pour ne
+# comparer que des rapports notes de la meme facon.
+#   1 : mots-cles cherches tels quels en minuscules (jusqu'au 01/11/2026)
+#   2 : alternatives (liste JSON), casse et accents normalises, frontiere de mot
+#       a gauche pour les mots-cles alphanumeriques
+SCORER_VERSION = 2
+
+
+def normalize_text(text: str) -> str:
+    """Normalisation commune reponse / mots-cles : casse, accents, apostrophes."""
+    text = (text or "").replace("\u2019", "'").replace("\u2018", "'")
+    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
+
+
+def keyword_in(keyword: str, normalized_text: str) -> bool:
+    """
+    Cherche un mot-cle dans un texte deja normalise.
+
+    Un mot-cle qui commence par une lettre ou un chiffre doit commencer un mot
+    ("os" ne matche pas "propose", "bug" ne matche pas "debug"). Pas de frontiere
+    a droite : les prefixes volontaires restent possibles ("realloc" -> "reallocation").
+    """
+    kw = normalize_text(keyword)
+    if not kw.strip():
+        return False
+    if kw[0].isalnum():
+        return re.search(r"(?<![0-9a-z_])" + re.escape(kw), normalized_text) is not None
+    return kw in normalized_text
+
+
+def topics_coverage(expected_topics: list, response: str) -> float:
+    """
+    Part des elements de expected_topics presents dans la reponse.
+
+    Un element est un mot-cle, ou une liste de mots-cles alternatifs (couvert si
+    l'un d'eux est present).
+    """
+    if not expected_topics:
+        return 1.0
+    normalized = normalize_text(response)
+    covered = 0
+    for topic in expected_topics:
+        alternatives = topic if isinstance(topic, list) else [topic]
+        covered += any(keyword_in(alt, normalized) for alt in alternatives)
+    return covered / len(expected_topics)
+
+
 def evaluate_response(response: str, prompt_data: dict) -> dict:
     """Evalue une reponse selon la grille."""
     scores = {}
@@ -144,15 +194,10 @@ def evaluate_response(response: str, prompt_data: dict) -> dict:
     # 2. Blocs de code
     auto_checks["code_blocks"] = "```rust" in response or "```" in response
 
-    # 3. Topics couverts
-    expected_topics = prompt_data.get("expected_topics", [])
-    if expected_topics:
-        covered = sum(
-            1 for topic in expected_topics if topic.lower() in response.lower()
-        )
-        auto_checks["expected_topics"] = covered / len(expected_topics)
-    else:
-        auto_checks["expected_topics"] = 1.0
+    # 3. Topics couverts (alternatives, normalisation casse/accents)
+    auto_checks["expected_topics"] = topics_coverage(
+        prompt_data.get("expected_topics", []), response
+    )
 
     # 4. Longueur de reponse
     word_count = len(response.split())
@@ -334,6 +379,7 @@ def run_metadata(config: dict, use_rag: bool, prompts_file: Path) -> dict:
     """Metadonnees de reproductibilite : modele reellement utilise, seed, code, RAG."""
     model_path = PROJECT_ROOT / config["paths"]["model"]
     return {
+        "scorer_version": SCORER_VERSION,
         "model_path": str(config["paths"]["model"]),
         "model_size_bytes": model_path.stat().st_size if model_path.exists() else None,
         "seed": config["inference"].get("seed"),

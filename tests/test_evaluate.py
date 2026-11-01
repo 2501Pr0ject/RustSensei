@@ -130,3 +130,49 @@ def test_run_metadata_records_model_and_seed():
     assert meta["model_size_bytes"] is None
     assert meta["seed"] == 7
     assert meta["rag_settings"] is None
+
+
+def test_topics_coverage_normalizes_case_and_accents():
+    from evaluate import topics_coverage
+
+    assert topics_coverage(["Propriété", "léger"], "la PROPRIETE d'un thread legere") == 1.0
+    assert topics_coverage(["système d'exploitation"], "le système d’exploitation") == 1.0
+
+
+def test_topics_coverage_alternatives():
+    from evaluate import topics_coverage
+
+    topics = [["OS", "système d'exploitation"], "coopérati"]
+
+    assert topics_coverage(topics, "planifié par l'OS, de façon coopérative") == 1.0
+    assert topics_coverage(topics, "le systeme d'exploitation") == 0.5
+    assert topics_coverage([["a", "b"], "c"], "c") == 0.5
+
+
+def test_topics_coverage_left_word_boundary():
+    from evaluate import topics_coverage
+
+    assert topics_coverage([["OS"]], "je propose un dossier") == 0.0
+    assert topics_coverage(["bug"], "en mode debug") == 0.0
+    assert topics_coverage(["réalloc"], "une réallocation du buffer") == 1.0
+
+
+def test_topics_coverage_symbol_keywords():
+    from evaluate import topics_coverage
+
+    assert topics_coverage(["move ||"], "thread::spawn(move || { })") == 1.0
+    assert topics_coverage([" if "], "Some(x) if x > 5 =>") == 1.0
+    assert topics_coverage([": Fn"], "fn appliquer<F: Fn(i32)>(f: F)") == 1.0
+    assert topics_coverage([], "x") == 1.0
+
+
+def test_run_metadata_records_scorer_version():
+    from pathlib import Path
+
+    from evaluate import SCORER_VERSION, run_metadata
+
+    config = {"paths": {"model": "models/x.gguf"}, "inference": {"seed": 1}}
+
+    meta = run_metadata(config, use_rag=False, prompts_file=Path("eval/prompts_fr.jsonl"))
+
+    assert meta["scorer_version"] == SCORER_VERSION == 2
