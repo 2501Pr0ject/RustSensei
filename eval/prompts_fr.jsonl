@@ -48,3 +48,44 @@
 {"id": 48, "category": "concurrency", "difficulty": "avance", "prompt": "Comment créer un thread en Rust ?", "expected_topics": ["std::thread::spawn", "move", "join"]}
 {"id": 49, "category": "concurrency", "difficulty": "avance", "prompt": "Qu'est-ce que Send et Sync en Rust ?", "expected_topics": ["marker traits", "thread safety", "auto traits"]}
 {"id": 50, "category": "async", "difficulty": "avance", "prompt": "Comment fonctionne async/await en Rust ?", "expected_topics": ["Future", "runtime", "tokio", ".await"]}
+{"id": 51, "category": "lifetimes", "difficulty": "avance", "prompt": "Pourquoi ce code ne compile pas : fn dangle() -> &String { let s = String::from(\"hello\"); &s }", "expected_topics": ["String", "référence", "durée de vie"]}
+{"id": 52, "category": "lifetimes", "difficulty": "avance", "prompt": "Comment stocker une référence dans une struct, et pourquoi Rust demande-t-il un paramètre de lifetime ?", "expected_topics": ["struct", "'a", "référence"]}
+{"id": 53, "category": "lifetimes", "difficulty": "intermediaire", "prompt": "Que signifie 'static en Rust ?", "expected_topics": ["'static", "durée de vie", "&'static str"]}
+{"id": 54, "category": "borrowing", "difficulty": "intermediaire", "prompt": "Pourquoi ce code ne compile pas : let mut v = vec![1, 2, 3]; let premier = &v[0]; v.push(4); println!(\"{}\", premier);", "expected_topics": ["push", "référence", "immuable", "mutable"]}
+{"id": 55, "category": "borrowing", "difficulty": "intermediaire", "prompt": "Comment modifier une valeur à travers une référence mutable passée à une fonction ?", "expected_topics": ["&mut", "*", "mut"]}
+{"id": 56, "category": "borrowing", "difficulty": "avance", "prompt": "Qu'est-ce que les non-lexical lifetimes (NLL) et qu'ont-elles changé pour le borrow checker ?", "expected_topics": ["NLL", "borrow checker", "référence"]}
+{"id": 57, "category": "smart_pointers", "difficulty": "avance", "prompt": "Qu'est-ce que RefCell<T> et la mutabilité intérieure ?", "expected_topics": ["RefCell", "borrow_mut", "runtime", "panic"]}
+{"id": 58, "category": "smart_pointers", "difficulty": "avance", "prompt": "Pourquoi combine-t-on souvent Rc<RefCell<T>> ?", "expected_topics": ["Rc", "RefCell", "borrow_mut", "clone"]}
+{"id": 59, "category": "smart_pointers", "difficulty": "avance", "prompt": "Comment éviter les cycles de références avec Weak<T> ?", "expected_topics": ["Weak", "Rc::downgrade", "upgrade", "fuite"]}
+{"id": 60, "category": "smart_pointers", "difficulty": "intermediaire", "prompt": "Comment définir une liste chaînée récursive avec Box<T> ?", "expected_topics": ["Box", "enum", "récursi"]}
+{"id": 61, "category": "concurrency", "difficulty": "avance", "prompt": "Comment partager une donnée modifiable entre plusieurs threads ?", "expected_topics": ["Arc", "Mutex", "lock", "thread::spawn"]}
+{"id": 62, "category": "concurrency", "difficulty": "avance", "prompt": "Comment communiquer entre threads avec des channels ?", "expected_topics": ["mpsc", "send", "recv", "channel"]}
+{"id": 63, "category": "concurrency", "difficulty": "avance", "prompt": "Pourquoi ce code ne compile pas : let v = vec![1, 2, 3]; let handle = std::thread::spawn(|| println!(\"{:?}\", v)); handle.join().unwrap();", "expected_topics": ["move", "closure", "spawn"]}
+{"id": 64, "category": "concurrency", "difficulty": "avance", "prompt": "Pourquoi Rc<T> ne peut-il pas être envoyé entre threads ?", "expected_topics": ["Send", "Arc", "Rc"]}
+{"id": 65, "category": "closures", "difficulty": "intermediaire", "prompt": "Que fait le mot-clé move devant une closure ?", "expected_topics": ["move", "capture", "propriété"]}
+{"id": 66, "category": "closures", "difficulty": "avance", "prompt": "Comment passer une closure en paramètre d'une fonction ?", "expected_topics": ["Fn", "F:", "closure"]}
+{"id": 67, "category": "closures", "difficulty": "avance", "prompt": "Comment retourner une closure depuis une fonction ?", "expected_topics": ["impl Fn", "Box<dyn Fn", "move"]}
+{"id": 68, "category": "closures", "difficulty": "intermediaire", "prompt": "Pourquoi ce code ne compile pas : let mut compteur = 0; let incremente = || compteur += 1; incremente();", "expected_topics": ["mut", "FnMut"]}
+{"id": 69, "category": "async", "difficulty": "avance", "prompt": "Pourquoi a-t-on besoin d'un runtime comme tokio pour exécuter du code async ?", "expected_topics": ["runtime", "tokio", "Future", "executor"]}
+{"id": 70, "category": "async", "difficulty": "avance", "prompt": "Comment exécuter plusieurs futures en parallèle avec tokio ?", "expected_topics": ["join!", "tokio::spawn", ".await"]}
+{"id": 71, "category": "async", "difficulty": "avance", "prompt": "Quelle est la différence entre un thread et une tâche async ?", "expected_topics": ["thread", "tâche", "await"]}
+{"id": 72, "category": "async", "difficulty": "intermediaire", "prompt": "Comment écrire une fonction async qui retourne un Result ?", "expected_topics": ["async fn", "Result", "?", ".await"]}
+{"id": 73, "category": "generics", "difficulty": "intermediaire", "prompt": "Comment définir une struct générique, par exemple Point<T> ?", "expected_topics": ["struct Point<T>", "impl<T>", "T"]}
+{"id": 74, "category": "generics", "difficulty": "avance", "prompt": "Comment implémenter des méthodes uniquement pour certains types d'une struct générique ?", "expected_topics": ["impl", "where", "T:"]}
+{"id": 75, "category": "generics", "difficulty": "avance", "prompt": "Qu'est-ce qu'un type associé dans un trait, comme Item dans Iterator ?", "expected_topics": ["type Item", "Iterator", "next"]}
+{"id": 76, "category": "traits", "difficulty": "intermediaire", "prompt": "Comment fournir une implémentation par défaut d'une méthode de trait ?", "expected_topics": ["trait", "fn", "impl", "par défaut"]}
+{"id": 77, "category": "traits", "difficulty": "intermediaire", "prompt": "À quoi servent les attributs #[derive(Debug, Clone, PartialEq)] ?", "expected_topics": ["derive", "Debug", "Clone", "PartialEq"]}
+{"id": 78, "category": "testing", "difficulty": "intermediaire", "prompt": "Comment tester qu'une fonction panique avec #[should_panic] ?", "expected_topics": ["#[should_panic]", "#[test]", "expected"]}
+{"id": 79, "category": "testing", "difficulty": "intermediaire", "prompt": "Où placer les tests d'intégration dans un projet Cargo ?", "expected_topics": ["tests/", "cargo test", "#[test]"]}
+{"id": 80, "category": "testing", "difficulty": "debutant", "prompt": "À quoi sert le module #[cfg(test)] mod tests ?", "expected_topics": ["#[cfg(test)]", "mod tests", "use super::*"]}
+{"id": 81, "category": "modules", "difficulty": "intermediaire", "prompt": "Comment diviser un module dans plusieurs fichiers ?", "expected_topics": ["mod", "mod.rs", "pub"]}
+{"id": 82, "category": "modules", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre crate::, self:: et super:: dans un chemin ?", "expected_topics": ["crate::", "self::", "super::"]}
+{"id": 83, "category": "cargo", "difficulty": "debutant", "prompt": "Quelle est la différence entre cargo build, cargo run et cargo check ?", "expected_topics": ["cargo build", "cargo run", "cargo check"]}
+{"id": 84, "category": "cargo", "difficulty": "intermediaire", "prompt": "Comment compiler un projet Rust en mode release et pourquoi ?", "expected_topics": ["--release", "optimisation", "target/release"]}
+{"id": 85, "category": "ownership", "difficulty": "intermediaire", "prompt": "Quelle est la différence entre Clone et Copy ?", "expected_topics": ["Clone", "Copy", "clone()"]}
+{"id": 86, "category": "structs", "difficulty": "intermediaire", "prompt": "Comment créer une struct tuple et une unit struct ?", "expected_topics": ["struct", "tuple", "unit"]}
+{"id": 87, "category": "enums", "difficulty": "intermediaire", "prompt": "Comment associer des données différentes à chaque variante d'un enum ?", "expected_topics": ["enum", "match", "variante"]}
+{"id": 88, "category": "pattern_matching", "difficulty": "intermediaire", "prompt": "Comment utiliser des gardes (match guards) et des plages dans un match ?", "expected_topics": ["if", "..=", "match"]}
+{"id": 89, "category": "collections", "difficulty": "intermediaire", "prompt": "Comment compter le nombre d'occurrences de chaque mot d'un texte avec une HashMap ?", "expected_topics": ["HashMap", "entry", "or_insert", "split_whitespace"]}
+{"id": 90, "category": "error_handling", "difficulty": "intermediaire", "prompt": "Quand faut-il utiliser panic! plutôt que Result ?", "expected_topics": ["panic!", "Result", "irrécupérable"]}
+{"id": 91, "category": "iterators", "difficulty": "avance", "prompt": "Comment implémenter le trait Iterator pour sa propre struct ?", "expected_topics": ["impl Iterator", "type Item", "fn next", "Option"]}
