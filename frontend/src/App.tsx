@@ -12,6 +12,33 @@ interface ChatMessage {
 
 const API_URL = "";
 
+const HISTORY_STORAGE_KEY = "rustsensei_history";
+
+const MAX_HISTORY_MESSAGES = 6;
+
+function loadPersistedHistory(): ChatMessage[] {
+  try {
+    const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    const valid = parsed.filter(
+      (m): m is ChatMessage =>
+        m &&
+        (m.role === "user" || m.role === "assistant") &&
+        typeof m.content === "string" &&
+        m.content.trim().length > 0,
+    );
+    return valid.slice(-MAX_HISTORY_MESSAGES);
+  } catch {
+    return [];
+  }
+}
+
 function splitCitation(citation: string): { label: string; url?: string } {
   const match = citation.match(/^\[([^\]]+)\]\((.+)\)$/);
   if (!match) {
@@ -36,7 +63,7 @@ function readCitations(res: Response): string[] {
 }
 
 export function App() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>(loadPersistedHistory);
   const [input, setInput] = useState("");
   const [useRag, setUseRag] = useState(false);
   const [dark, setDark] = useState(false);
@@ -47,6 +74,21 @@ export function App() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending, streaming]);
+
+  useEffect(() => {
+    if (sending || streaming) {
+      return;
+    }
+    const turns = messages
+      .filter((m) => m.content.trim().length > 0)
+      .slice(-MAX_HISTORY_MESSAGES);
+    localStorage.setItem(
+      HISTORY_STORAGE_KEY,
+      JSON.stringify(
+        turns.map((m) => ({ role: m.role, content: m.content })),
+      ),
+    );
   }, [messages, sending, streaming]);
 
   const send = async () => {
@@ -128,6 +170,7 @@ export function App() {
 
   const clearChat = () => {
     setMessages([]);
+    localStorage.removeItem(HISTORY_STORAGE_KEY);
     setError(null);
   };
 
