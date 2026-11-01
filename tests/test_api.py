@@ -11,11 +11,25 @@ from app.api import app
 client = TestClient(app)
 
 
-def test_health():
+def test_health(monkeypatch):
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json() == {"status": "ok", "rag_available": True, "rag_error": None}
+
+
+def test_health_reports_missing_rag_index(monkeypatch):
+    monkeypatch.setattr(
+        "app.api.check_rag_available", lambda: (False, "Index FAISS non trouvé")
+    )
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["rag_available"] is False
+    assert response.json()["rag_error"] == "Index FAISS non trouvé"
 
 
 def test_chat_without_rag(monkeypatch):

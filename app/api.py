@@ -348,8 +348,13 @@ async def chat_stream(request: ChatRequest):
 
 @app.get("/health")
 def health() -> dict:
-    """Verifie la sante du service."""
-    return {"status": "ok"}
+    """Verifie la sante du service et indique si l'index RAG est disponible."""
+    rag_available, rag_error = check_rag_available()
+    return {
+        "status": "ok",
+        "rag_available": rag_available,
+        "rag_error": rag_error or None,
+    }
 
 
 @app.get("/cache/stats")
