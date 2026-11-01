@@ -30,13 +30,26 @@ function loadPersistedHistory(): ChatMessage[] {
     if (!Array.isArray(parsed)) {
       return [];
     }
-    const valid = parsed.filter(
-      (m): m is ChatMessage =>
-        m &&
-        (m.role === "user" || m.role === "assistant") &&
-        typeof m.content === "string" &&
-        m.content.trim().length > 0,
-    );
+    const valid: ChatMessage[] = parsed
+      .filter(
+        (m) =>
+          m &&
+          (m.role === "user" || m.role === "assistant") &&
+          typeof m.content === "string" &&
+          m.content.trim().length > 0,
+      )
+      .map((m) => {
+        const message: ChatMessage = { role: m.role, content: m.content };
+        if (Array.isArray(m.citations)) {
+          message.citations = m.citations.filter(
+            (c: unknown): c is string => typeof c === "string",
+          );
+        }
+        if (m.cached === true) {
+          message.cached = true;
+        }
+        return message;
+      });
     return valid.slice(-MAX_HISTORY_MESSAGES);
   } catch {
     return [];
@@ -99,12 +112,23 @@ export function App() {
     const turns = messages
       .filter((m) => m.content.trim().length > 0)
       .slice(-MAX_HISTORY_MESSAGES);
-    localStorage.setItem(
-      HISTORY_STORAGE_KEY,
-      JSON.stringify(
-        turns.map((m) => ({ role: m.role, content: m.content })),
-      ),
-    );
+    // Sources et badge cache sont conserves pour l'affichage apres rechargement
+    // (seuls role et content sont envoyes au backend comme historique).
+    try {
+      localStorage.setItem(
+        HISTORY_STORAGE_KEY,
+        JSON.stringify(
+          turns.map(({ role, content, citations, cached }) => ({
+            role,
+            content,
+            ...(citations?.length ? { citations } : {}),
+            ...(cached ? { cached } : {}),
+          })),
+        ),
+      );
+    } catch {
+      // Stockage indisponible (navigation privee, quota) : historique non persiste.
+    }
   }, [messages, sending, streaming]);
 
   const send = async () => {
@@ -201,7 +225,11 @@ export function App() {
 
   const clearChat = () => {
     setMessages([]);
-    localStorage.removeItem(HISTORY_STORAGE_KEY);
+    try {
+      localStorage.removeItem(HISTORY_STORAGE_KEY);
+    } catch {
+      // Stockage indisponible : rien a effacer.
+    }
     setError(null);
   };
 
