@@ -12,7 +12,7 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from .cache import response_cache
+from .cache import ResponseCache, response_cache
 
 console = Console()
 
@@ -184,6 +184,8 @@ def chat_loop(use_rag: bool = False):
 
     console.print(f"[dim]Modèle: {config['model']['name']}[/dim]\n")
 
+    history: list[dict] = []
+
     while True:
         try:
             user_input = Prompt.ask("\n[bold green]Vous[/bold green]")
@@ -195,14 +197,25 @@ def chat_loop(use_rag: bool = False):
             if not user_input.strip():
                 continue
 
+            history.append({"role": "user", "content": user_input})
+            history = history[-6:]
+
             # RAG: récupérer le contexte (ou la réponse en cache)
             context = None
             citations = []
             response = None
 
+            retriever_embedder = None
             if retriever:
-                embedder = getattr(retriever, "embed_query", None)
-                cached = response_cache.get(user_input, embedder=embedder)
+                retriever_embedder = getattr(retriever, "embed_query", None)
+
+            cache_query = ResponseCache.composite_key(history[:-1], user_input)
+            cache_embedder = retriever_embedder if not history[:-1] else None
+
+            if retriever:
+                cached = response_cache.get(
+                    cache_query, embedder=cache_embedder
+                )
                 if cached is not None:
                     response = cached["response"]
                     citations = cached["citations"]
@@ -217,13 +230,20 @@ def chat_loop(use_rag: bool = False):
             # Construire le prompt et générer si absent du cache
             if response is None:
                 console.print("[dim]Génération...[/dim]")
-                full_prompt = build_prompt(user_input, config, context=context)
+                full_prompt = build_prompt(
+                    user_input, config, context=context, history=history[:-1]
+                )
                 response = call_llama_cli(full_prompt, config)
 
                 if retriever:
                     response_cache.set(
-                        user_input, response, citations, embedder=embedder
+                        cache_query,
+                        response,
+                        citations,
+                        embedder=cache_embedder,
                     )
+
+            history.append({"role": "assistant", "content": response})
 
             # Afficher la réponse
             console.print("\n[bold blue]RustSensei[/bold blue]:")
