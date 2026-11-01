@@ -1,0 +1,190 @@
+# Graphe de connaissances Rust (KAG)
+# ==================================
+# Concepts cures : aliases (avec synonymes FR) et concepts lies.
+# Utilise par le retrieval pour elargir les requetes multi-domaines
+# (ex. "Rc entre threads" -> Send/Sync/Arc).
+
+nodes:
+  - id: ownership
+    name: Ownership
+    aliases: ["ownership", "propriete", "proprietaire", "sous les droits"]
+    related: [move, borrowing, lifetimes, drop, clone-copy]
+
+  - id: move
+    name: Move
+    aliases: ["move", "deplacement", "deplacer", "moved"]
+    related: [ownership, borrowing, clone-copy]
+
+  - id: borrowing
+    name: Borrowing
+    aliases:
+      ["borrow", "borrowing", "emprunt", "emprunter", "reference", "reference mutable"]
+    related: [ownership, lifetimes, borrow-checker, cell-refcell]
+
+  - id: borrow-checker
+    name: Borrow checker
+    aliases: ["borrow checker", "controleur d emprunt"]
+    related: [borrowing, lifetimes, ownership]
+
+  - id: lifetimes
+    name: Lifetimes
+    aliases: ["lifetime", "lifetimes", "duree de vie", "vitalite"]
+    related: [borrowing, ownership]
+
+  - id: drop
+    name: Drop
+    aliases: ["drop", "destructeur", "raii"]
+    related: [ownership, borrowing]
+
+  - id: clone-copy
+    name: Clone et Copy
+    aliases: ["clone", "copy", "cloner", "copier"]
+    related: [ownership, move, borrowing]
+
+  - id: box
+    name: Box
+    aliases: ["box", "boxed", "heap alloc"]
+    related: [deref, rc, dyn-trait]
+
+  - id: rc
+    name: Rc
+    aliases: ["rc", "reference counted", "compte de references"]
+    related: [arc, send-sync, weak, box, cell-refcell]
+
+  - id: arc
+    name: Arc
+    aliases: ["arc", "atomic reference counted"]
+    related: [rc, send-sync, mutex, thread]
+
+  - id: weak
+    name: Weak
+    aliases: ["weak", "reference faible"]
+    related: [rc, arc]
+
+  - id: cell-refcell
+    name: Cell et RefCell
+    aliases: ["cell", "refcell", "mutabilite interieure"]
+    related: [borrowing, send-sync, unsafe]
+
+  - id: send-sync
+    name: Send et Sync
+    aliases: ["send", "sync", "thread safety", "thread safe", "partage entre threads"]
+    related: [thread, arc, mutex, cell-refcell]
+
+  - id: thread
+    name: Threads
+    aliases: ["thread", "threads", "multithreading", "parallelisme", "parallele"]
+    related: [send-sync, arc, mutex, channel]
+
+  - id: async-await
+    name: Async et await
+    aliases: ["async", "await", "asynchrone", "future", "futures", "runtime async"]
+    related: [thread, channel, result]
+
+  - id: mutex
+    name: Mutex
+    aliases: ["mutex", "lock", "verrou", "rwlock"]
+    related: [thread, send-sync, arc]
+
+  - id: channel
+    name: Channels
+    aliases: ["channel", "canal", "canal de communication", "mpsc"]
+    related: [thread, async-await]
+
+  - id: deref
+    name: Deref
+    aliases: ["deref", "dereferencement", "dereferencer"]
+    related: [box, borrowing]
+
+  - id: result
+    name: Result
+    aliases:
+      [
+        "result",
+        "gestion d erreurs",
+        "gestion des erreurs",
+        "propagation d erreur",
+        "operateur question"
+      ]
+    related: [option, panic, match]
+
+  - id: option
+    name: Option
+    aliases: ["option", "valeur optionnelle", "some", "none"]
+    related: [result, panic, match]
+
+  - id: panic
+    name: Panic
+    aliases: ["panic", "paniquer", "unwrap", "expect"]
+    related: [option, result]
+
+  - id: match
+    name: Match
+    aliases: ["match", "pattern matching", "filtrage par motif", "motif"]
+    related: [enum, option, result]
+
+  - id: enum
+    name: Enum
+    aliases: ["enum", "enums", "enumeration"]
+    related: [match, struct, trait]
+
+  - id: struct
+    name: Struct
+    aliases: ["struct", "structures"]
+    related: [enum, trait, impl]
+
+  - id: trait
+    name: Trait
+    aliases: ["trait", "traits"]
+    related: [impl, dyn-trait, generics, struct]
+
+  - id: impl
+    name: Impl
+    aliases: ["impl", "implementation", "bloc impl"]
+    related: [trait, struct]
+
+  - id: generics
+    name: Generics
+    aliases: ["generique", "generiques", "generic", "parametre de type"]
+    related: [trait, struct, dyn-trait]
+
+  - id: dyn-trait
+    name: Objets trait (dyn)
+    aliases: ["dyn", "trait object", "objet trait", "dispatch dynamique"]
+    related: [trait, box, generics]
+
+  - id: string
+    name: String et str
+    aliases: ["string", "str", "chaine de caracteres", "chaine"]
+    related: [vec, slice, borrowing]
+
+  - id: vec
+    name: Vec
+    aliases: ["vec", "vecteur", "vector"]
+    related: [slice, string, iter]
+
+  - id: slice
+    name: Slices
+    aliases: ["slice", "slices", "tranche", "tranches"]
+    related: [vec, string, borrowing]
+
+  - id: iter
+    name: Iterateurs
+    aliases:
+      ["iterator", "iterateur", "iterateurs", "iter", "collect", "map", "filter"]
+    related: [vec, closure, slice]
+
+  - id: closure
+    name: Closures
+    aliases: ["closure", "closures", "fermeture", "lambda"]
+    related: [iter, thread, borrowing]
+
+  - id: module-cargo
+    name: Modules et Cargo
+    aliases: ["module", "modules", "cargo", "crate", "workspace"]
+    related: []
+
+  - id: unsafe
+    name: Unsafe
+    aliases: ["unsafe", "bloc unsafe", "dangereux"]
+    related: [ownership, cell-refcell, send-sync]
