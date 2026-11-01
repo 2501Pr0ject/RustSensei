@@ -99,3 +99,19 @@ def test_build_user_content_has_no_chatml_template():
     assert "<|im_start|>" not in content
     assert content.startswith("Conversation précédente :")
     assert content.endswith("Question : Question ?")
+
+
+def test_truncate_history_content():
+    from app.chat import (
+        MAX_HISTORY_CHARS,
+        MAX_HISTORY_MESSAGE_CHARS,
+        MAX_HISTORY_MESSAGES,
+        truncate_history_content,
+    )
+
+    assert truncate_history_content("  court  ") == "court"
+
+    truncated = truncate_history_content("x" * 5000)
+    assert len(truncated) <= MAX_HISTORY_MESSAGE_CHARS
+    assert truncated.endswith("[…]")
+    assert MAX_HISTORY_MESSAGE_CHARS * MAX_HISTORY_MESSAGES <= MAX_HISTORY_CHARS

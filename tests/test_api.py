@@ -357,6 +357,36 @@ def test_stream_sends_unformatted_user_content(monkeypatch):
     assert "Tu es RustSensei" in captured["system"]
 
 
+def test_long_history_is_truncated_not_rejected(monkeypatch):
+    """Des reponses longues dans l'historique ne doivent pas provoquer de 422."""
+    captured = {}
+
+    async def fake_stream(config, user_content, system_prompt):
+        captured["user_content"] = user_content
+        yield "reponse"
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    history = [
+        {"role": "user", "content": "Question 1"},
+        {"role": "assistant", "content": "A" * 2300},
+        {"role": "user", "content": "Question 2"},
+        {"role": "assistant", "content": "B" * 2000},
+        {"role": "user", "content": "Question 3"},
+        {"role": "assistant", "content": "C" * 1500},
+    ]
+
+    response = client.post(
+        "/chat/stream", json={"message": "Suite ?", "history": history}
+    )
+
+    assert response.status_code == 200
+    assert "Utilisateur : Question 1" in captured["user_content"]
+    assert "[…]" in captured["user_content"]
+    assert "A" * 2300 not in captured["user_content"]
+
+
 def test_chat_rag_unavailable_returns_503(monkeypatch):
     monkeypatch.setattr(
         "app.api.check_rag_available", lambda: (False, "index absent")

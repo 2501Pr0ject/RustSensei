@@ -18,11 +18,13 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .cache import ResponseCache, response_cache
 from .chat import (
+    MAX_HISTORY_MESSAGES,
     build_prompt,
     build_user_content,
     call_llama_cli,
     get_rag_retriever,
     load_config,
+    truncate_history_content,
 )
 from .rag import check_rag_available
 
@@ -31,10 +33,6 @@ app = FastAPI(
     description="Assistant Rust local - API",
     version="0.1.0",
 )
-
-# Historique de conversation transmis par les clients (3 derniers echanges).
-MAX_HISTORY_MESSAGES = 6
-MAX_HISTORY_CHARS = 4000
 
 
 class HistoryMessage(BaseModel):
@@ -49,7 +47,9 @@ class HistoryMessage(BaseModel):
         stripped = (value or "").strip()
         if not stripped:
             raise ValueError("Le contenu du message ne peut pas etre vide")
-        return stripped
+        # Les longues reponses sont tronquees (et non rejetees) pour que
+        # l'historique complet reste dans le budget MAX_HISTORY_CHARS.
+        return truncate_history_content(stripped)
 
 
 class ChatRequest(BaseModel):
@@ -64,10 +64,6 @@ class ChatRequest(BaseModel):
         if self.history and len(self.history) > MAX_HISTORY_MESSAGES:
             raise ValueError(
                 f"L'historique est limite a {MAX_HISTORY_MESSAGES} messages"
-            )
-        if sum(len(m.content) for m in self.history) > MAX_HISTORY_CHARS:
-            raise ValueError(
-                f"L'historique est limite a {MAX_HISTORY_CHARS} caracteres"
             )
         return self
 

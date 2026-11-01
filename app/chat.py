@@ -22,6 +22,27 @@ CONFIGS_DIR = PROJECT_ROOT / "configs"
 # RAG retriever (lazy loaded)
 _rag_retriever = None
 
+# Historique de conversation (3 derniers echanges).
+MAX_HISTORY_MESSAGES = 6
+MAX_HISTORY_CHARS = 4000
+# Budget par message : garantit que l'historique complet tient dans MAX_HISTORY_CHARS.
+MAX_HISTORY_MESSAGE_CHARS = MAX_HISTORY_CHARS // MAX_HISTORY_MESSAGES
+TRUNCATION_MARKER = " […]"
+
+
+def truncate_history_content(content: str) -> str:
+    """
+    Tronque un message d'historique a MAX_HISTORY_MESSAGE_CHARS.
+
+    Le debut est conserve : les reponses commencent par le TL;DR, qui suffit
+    comme contexte pour les tours suivants.
+    """
+    content = (content or "").strip()
+    if len(content) <= MAX_HISTORY_MESSAGE_CHARS:
+        return content
+    keep = MAX_HISTORY_MESSAGE_CHARS - len(TRUNCATION_MARKER)
+    return content[:keep].rstrip() + TRUNCATION_MARKER
+
 
 def load_config() -> dict:
     """Charge la configuration du modèle."""
@@ -216,8 +237,10 @@ def chat_loop(use_rag: bool = False):
             if not user_input.strip():
                 continue
 
-            history.append({"role": "user", "content": user_input})
-            history = history[-6:]
+            history.append(
+                {"role": "user", "content": truncate_history_content(user_input)}
+            )
+            history = history[-MAX_HISTORY_MESSAGES:]
 
             # RAG: récupérer le contexte (ou la réponse en cache)
             context = None
@@ -262,7 +285,9 @@ def chat_loop(use_rag: bool = False):
                         embedder=cache_embedder,
                     )
 
-            history.append({"role": "assistant", "content": response})
+            history.append(
+                {"role": "assistant", "content": truncate_history_content(response)}
+            )
 
             # Afficher la réponse
             console.print("\n[bold blue]RustSensei[/bold blue]:")
