@@ -223,6 +223,12 @@ export function App() {
   const showThinking =
     sending && (!lastMessage || lastMessage.role === "user" || lastMessage.content === "");
 
+  const statusMessage = sending
+    ? "RustSensei rédige sa réponse…"
+    : lastMessage?.role === "assistant" && lastMessage.content
+      ? "Réponse de RustSensei reçue."
+      : "";
+
   const clearChat = () => {
     setMessages([]);
     try {
@@ -261,7 +267,16 @@ export function App() {
           </div>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1" aria-live="polite">
+        {/* Pas d'aria-live sur la liste : le streaming ferait relire le message a chaque fragment.
+            Les lecteurs d'ecran sont informes via la zone de statut ci-dessous. */}
+        <p role="status" className="sr-only">
+          {statusMessage}
+        </p>
+        <section
+          aria-label="Conversation"
+          aria-busy={streaming}
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1"
+        >
           {messages.map((m, i) => (
             <div
               key={i}
@@ -320,7 +335,7 @@ export function App() {
             </div>
           ) : null}
           <div ref={bottomRef} />
-        </div>
+        </section>
 
         <form
           className="flex items-end gap-2 pt-2"
@@ -331,6 +346,8 @@ export function App() {
         >
           <textarea
             ref={inputRef}
+            aria-label="Votre question pour RustSensei"
+            aria-describedby="input-hint"
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -357,10 +374,14 @@ export function App() {
             Envoyer
           </button>
         </form>
-        <p className="hidden text-xs text-green-500/60 pointer-fine:block">
+        <p id="input-hint" className="hidden text-xs text-green-500/60 pointer-fine:block">
           Entrée pour envoyer · Maj+Entrée pour un saut de ligne (code multi-ligne)
         </p>
-        {error ? <p className="text-sm text-red-400">{error}</p> : null}
+        {error ? (
+          <p role="alert" className="text-sm text-red-400">
+            {error}
+          </p>
+        ) : null}
       </div>
     </div>
   );
