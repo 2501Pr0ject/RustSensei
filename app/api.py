@@ -235,6 +235,8 @@ async def chat_stream(request: ChatRequest):
                 citations = retriever.get_citations(chunks)
 
     headers = {}
+    if retriever is not None:
+        headers["X-Cache"] = "HIT" if cached is not None else "MISS"
     if citations:
         headers["X-Citations"] = _encode_citations(citations)
 

@@ -103,6 +103,7 @@ def test_stream_returns_cached_response(monkeypatch):
 
     assert response.status_code == 200
     assert response.text == "reponse stream cachee"
+    assert response.headers["X-Cache"] == "HIT"
 
 
 def test_stream_exposes_citations_header(monkeypatch):
@@ -155,8 +156,22 @@ def test_stream_retrieves_and_stores_citations(monkeypatch):
 
     assert response.text == "reponse generee"
     assert "X-Citations" in response.headers
+    assert response.headers["X-Cache"] == "MISS"
     cache.set.assert_called_once()
     assert cache.set.call_args.args[2] == ["[Rust Book — Ownership]"]
+
+
+def test_stream_without_rag_has_no_cache_header(monkeypatch):
+    async def fake_stream(config, prompt, system_prompt):
+        yield "reponse baseline"
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    response = client.post("/chat/stream", json={"message": "Question baseline"})
+
+    assert response.text == "reponse baseline"
+    assert "X-Cache" not in response.headers
 
 
 def test_cache_stats_endpoint(monkeypatch):

@@ -7,6 +7,7 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
   citations?: string[];
+  cached?: boolean;
 }
 
 const API_URL = "";
@@ -73,12 +74,13 @@ export function App() {
         throw new Error(`Erreur streaming: ${res.status}`);
       }
       const citations = readCitations(res);
-      if (citations.length > 0) {
+      const cached = res.headers.get("X-Cache") === "HIT";
+      if (citations.length > 0 || cached) {
         setMessages((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
           if (last?.role === "assistant") {
-            next[next.length - 1] = { ...last, citations };
+            next[next.length - 1] = { ...last, citations, cached };
           }
           return next;
         });
@@ -181,6 +183,13 @@ export function App() {
               ) : (
                 <p className="whitespace-pre-wrap text-base">{m.content}</p>
               )}
+              {m.role === "assistant" && m.cached ? (
+                <div className="mb-1 text-xs text-green-500/70">
+                  <span className="rounded-full border border-green-400/30 px-2 py-0.5">
+                    réponse servie depuis le cache
+                  </span>
+                </div>
+              ) : null}
               {m.citations && m.citations.length > 0 ? (
                 <div className="mt-2 text-xs text-green-500/70">
                   Sources :{" "}
