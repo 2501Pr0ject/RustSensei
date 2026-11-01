@@ -27,19 +27,30 @@ make chat
 - **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Conversation multi-tours** - Historique (3 derniers échanges) envoyé au modèle contextuel
-- **Compilation : 61%** - Évaluation auto sur 50 prompts
+- **Compilation : 54%** des blocs de code - Évaluation auto sur 50 prompts
 - **Français** - Réponses pédagogiques en français (100%)
 
 ## Métriques
 
-| Métrique | Valeur |
-|----------|--------|
-| Score global | 3.10/5 |
-| Langue FR | 100% |
-| Compilation | 61% |
-| Dataset | 221 exemples |
+| Métrique | Nov. 2026 | Janv. 2026 |
+|----------|-----------|------------|
+| Score global | 3.18/5 | 3.10/5 |
+| Langue FR | 100% | 100% |
+| Compilation (blocs) | 54% (35/65) | 61% (44/72) |
+| Sources spécialisées hors sujet | 26 | 42 |
+| Dataset | 221 exemples | 221 exemples |
 
-*Évaluation : 50 prompts, 5 critères, RAG activé*
+*Évaluation : 50 prompts, 5 critères, RAG activé, seed 42. Novembre : retrieval
+hybride (dense + BM25), graphe de connaissances et reranker multilingue ;
+janvier : retrieval dense + reranker. Rapport : `reports/eval_rag_20261101_162142.json`.*
+
+Le nouveau retrieval cite moins souvent des sources hors sujet (Rustonomicon,
+Async Book ou Edition Guide pour une question qui ne porte pas sur unsafe,
+async ou les éditions : 26 citations au lieu de 42). L'écart de score global
+(+0.08, IC95 [-0.16, +0.32]) n'est pas significatif, et sur les 31 prompts qui
+produisent du code dans les deux évaluations, le taux de compilation est
+identique (58%) : la baisse brute vient de prompts différents qui produisent du
+code. Le modèle 1.5B reste le facteur limitant (lifetimes 1.75/5, borrowing 2.00/5).
 
 ## Cache et retrieval hybride
 
