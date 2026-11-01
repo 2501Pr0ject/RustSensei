@@ -115,3 +115,13 @@ def test_truncate_history_content():
     assert len(truncated) <= MAX_HISTORY_MESSAGE_CHARS
     assert truncated.endswith("[…]")
     assert MAX_HISTORY_MESSAGE_CHARS * MAX_HISTORY_MESSAGES <= MAX_HISTORY_CHARS
+
+
+def test_clean_llama_output_strips_end_of_text_marker():
+    from app.chat import clean_llama_output
+
+    assert clean_llama_output("Réponse.  [end of text]\n") == "Réponse."
+    assert clean_llama_output("Réponse sans marqueur\n") == "Réponse sans marqueur"
+    assert clean_llama_output("Le texte [end of text] au milieu") == (
+        "Le texte [end of text] au milieu"
+    )

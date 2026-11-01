@@ -153,6 +153,17 @@ def build_prompt(
     )
 
 
+END_OF_TEXT_MARKER = "[end of text]"
+
+
+def clean_llama_output(text: str) -> str:
+    """Retire le marqueur de fin que llama-cli ajoute a la sortie standard."""
+    text = (text or "").strip()
+    if text.endswith(END_OF_TEXT_MARKER):
+        text = text[: -len(END_OF_TEXT_MARKER)].rstrip()
+    return text
+
+
 def call_llama_cli(prompt: str, config: dict) -> str:
     """Appelle llama-cli et retourne la réponse."""
     llama_cli = PROJECT_ROOT / config["paths"]["llama_cli"]
@@ -182,7 +193,7 @@ def call_llama_cli(prompt: str, config: dict) -> str:
             text=True,
             timeout=120,
         )
-        return result.stdout.strip()
+        return clean_llama_output(result.stdout)
     except subprocess.TimeoutExpired:
         return "[Timeout - la génération a pris trop de temps]"
     except Exception as e:
