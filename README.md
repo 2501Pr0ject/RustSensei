@@ -27,30 +27,65 @@ make chat
 - **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Conversation multi-tours** - Historique (3 derniers échanges) envoyé au modèle contextuel
-- **Compilation : 54%** des blocs de code - Évaluation auto sur 50 prompts
+- **Compilation : 49%** des blocs de code - Évaluation auto sur 91 prompts, 3 graines
 - **Français** - Réponses pédagogiques en français (100%)
 
 ## Métriques
 
-| Métrique | Nov. 2026 | Janv. 2026 |
-|----------|-----------|------------|
-| Score global | 3.18/5 | 3.10/5 |
-| Langue FR | 100% | 100% |
-| Compilation (blocs) | 54% (35/65) | 61% (44/72) |
-| Sources spécialisées hors sujet | 26 | 42 |
-| Dataset | 221 exemples | 221 exemples |
+Référence actuelle : Qwen2.5-Coder-1.5B-Instruct (GGUF officiel Qwen, Q4_K_M),
+RAG activé (retrieval hybride dense + BM25, graphe de connaissances, reranker
+multilingue).
 
-*Évaluation : 50 prompts, 5 critères, RAG activé, seed 42. Novembre : retrieval
-hybride (dense + BM25), graphe de connaissances et reranker multilingue ;
-janvier : retrieval dense + reranker. Rapport : `reports/eval_rag_20261101_162142.json`.*
+| Métrique | Valeur |
+|----------|--------|
+| Score global | 3.05/5 (graines 42, 1, 2 : 3.08 / 3.10 / 2.98) |
+| Langue FR | 99% |
+| Compilation (blocs) | 49% (173/351) |
+| Format en 5 sections | 14% des réponses |
+| Dataset | 221 exemples |
 
-Le nouveau retrieval cite moins souvent des sources hors sujet (Rustonomicon,
-Async Book ou Edition Guide pour une question qui ne porte pas sur unsafe,
-async ou les éditions : 26 citations au lieu de 42). L'écart de score global
-(+0.08, IC95 [-0.16, +0.32]) n'est pas significatif, et sur les 31 prompts qui
-produisent du code dans les deux évaluations, le taux de compilation est
-identique (58%) : la baisse brute vient de prompts différents qui produisent du
-code. Le modèle 1.5B reste le facteur limitant (lifetimes 1.75/5, borrowing 2.00/5).
+*Évaluation : 91 prompts (`eval/prompts_fr.jsonl`), 3 graines, notation v2 :
+mots-clés avec alternatives, casse et accents normalisés, frontière de mot à
+gauche (`SCORER_VERSION` dans `scripts/evaluate.py`, enregistré dans chaque
+rapport). 27 prompts recoupent les données d'entraînement LoRA
+(`"in_lora_train": true`) ; les 64 autres forment le sous-ensemble « hors
+entraînement » (`--held-out`).*
+
+**Anciens chiffres recalculés.** Les évaluations de janvier et du 1er novembre
+(50 prompts) ont été renotées avec la notation v2 à partir des réponses
+stockées (`scripts/rescore_reports.py`, marqueur `[end of text]` retiré des
+réponses de janvier), sans régénération ; les copies renotées sont dans
+`reports/rescored/`. Sur les prompts 1-50 : janvier 3.10/5, novembre 3.19/5
+(3 graines), écart +0.09, IC95 [-0.14, +0.33], non significatif. Le nouveau
+retrieval cite en revanche moins souvent des sources hors sujet (Rustonomicon,
+Async Book ou Edition Guide pour une question qui n'y touche pas : 26 citations
+au lieu de 42).
+
+### Modèles évalués
+
+| Modèle | Score | Écart à la référence (IC95) | FR | 5 sections | Compilation |
+|--------|-------|-----------------------------|----|------------|-------------|
+| Qwen2.5-Coder-1.5B (référence, 3 graines) | 3.05 | — | 99% | 14% | 49% |
+| Qwen2.5-Coder-3B (GGUF officiel, 3 graines) | 3.57 | +0.52 [+0.39, +0.67] | 100% | 92% | 53% |
+| LoRA correctif de janvier (graine 42) | 2.63 | -0.45 [-0.72, -0.16] (vs graine 42) | 80% | 5% | 34% |
+
+- **3B** : l'écart est significatif sur tous les sous-ensembles — prompts 1-50
+  +0.34, prompts 51-91 +0.74, hors entraînement +0.55 [+0.37, +0.74]. Coût :
+  fichier de 2.1 Go, environ 34 s par réponse en évaluation contre 14 s pour le
+  1.5B (réponses plus longues, médiane 293 mots contre 184). Licence
+  `qwen-research` (le 1.5B est sous Apache 2.0) : à vérifier avant adoption.
+- **LoRA correctif** : résultat rapporté pour information uniquement. Il a été
+  entraîné avec un autre prompt système, sans contexte RAG, et quantifié par un
+  pipeline local différent du GGUF officiel : il n'est pas représentatif d'un
+  futur LoRA v2.
+
+Reproduire :
+
+```bash
+uv run python scripts/evaluate.py --rag --seeds 42,1,2 [--model models/<fichier>.gguf]
+uv run python scripts/rescore_reports.py reports/eval_rag_*.json   # après un changement de notation
+uv run python scripts/compare_evals.py --ref <rapports référence> --new <rapports candidat> [--held-out] [--ids 1-50]
+```
 
 ## Cache et retrieval hybride
 
