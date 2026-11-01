@@ -16,6 +16,10 @@ const HISTORY_STORAGE_KEY = "rustsensei_history";
 
 const MAX_HISTORY_MESSAGES = 6;
 
+// Ecrans tactiles : Entree insere un saut de ligne, l'envoi passe par le bouton.
+const isCoarsePointer = (): boolean =>
+  typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
+
 function loadPersistedHistory(): ChatMessage[] {
   try {
     const raw = localStorage.getItem(HISTORY_STORAGE_KEY);
@@ -70,6 +74,19 @@ export function App() {
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hauteur auto de la zone de saisie (plafonnee par max-h, puis defilement).
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) {
+      return;
+    }
+    el.style.height = "auto";
+    if (input) {
+      el.style.height = `${el.scrollHeight}px`;
+    }
+  }, [input]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -278,17 +295,31 @@ export function App() {
         </div>
 
         <form
-          className="flex gap-2 pt-2"
+          className="flex items-end gap-2 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             void send();
           }}
         >
-          <input
+          <textarea
+            ref={inputRef}
+            rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Posez votre question sur Rust..."
-            className="min-w-0 flex-1 rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-base text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
+            onKeyDown={(e) => {
+              // Entree envoie, Maj+Entree insere un retour a la ligne.
+              if (
+                e.key === "Enter" &&
+                !e.shiftKey &&
+                !e.nativeEvent.isComposing &&
+                !isCoarsePointer()
+              ) {
+                e.preventDefault();
+                void send();
+              }
+            }}
+            placeholder="Votre question Rust…"
+            className="max-h-[40vh] min-w-0 flex-1 resize-none overflow-y-auto rounded-xl border border-green-400/30 bg-transparent px-4 py-2.5 font-mono text-base text-green-300 placeholder-green-500/50 focus:outline-none focus:ring-2 focus:ring-green-400/50"
           />
           <button
             type="submit"
@@ -298,6 +329,9 @@ export function App() {
             Envoyer
           </button>
         </form>
+        <p className="hidden text-xs text-green-500/60 pointer-fine:block">
+          Entrée pour envoyer · Maj+Entrée pour un saut de ligne (code multi-ligne)
+        </p>
         {error ? <p className="text-sm text-red-400">{error}</p> : null}
       </div>
     </div>
