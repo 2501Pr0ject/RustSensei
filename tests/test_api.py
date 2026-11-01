@@ -334,3 +334,27 @@ def test_stream_accepts_history(monkeypatch):
 
     assert response.status_code == 200
     assert "Utilisateur : Question initiale" in captured["prompt"]
+
+
+def test_chat_rag_unavailable_returns_503(monkeypatch):
+    monkeypatch.setattr(
+        "app.api.check_rag_available", lambda: (False, "index absent")
+    )
+
+    response = client.post("/chat", json={"message": "Question", "use_rag": True})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "RAG indisponible: index absent"
+
+
+def test_stream_rag_unavailable_returns_503(monkeypatch):
+    monkeypatch.setattr(
+        "app.api.check_rag_available", lambda: (False, "index absent")
+    )
+
+    response = client.post(
+        "/chat/stream", json={"message": "Question", "use_rag": True}
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "RAG indisponible: index absent"

@@ -12,8 +12,7 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
-from fastapi import FastAPI
-from fastapi.exceptions import FastAPIError
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -215,7 +214,9 @@ def chat(request: ChatRequest) -> ChatResponse:
     if use_rag:
         available, error_msg = check_rag_available()
         if not available:
-            raise FastAPIError(message=f"RAG indisponible: {error_msg}")
+            raise HTTPException(
+                status_code=503, detail=f"RAG indisponible: {error_msg}"
+            )
 
     if use_rag:
         retriever = get_rag_retriever()
@@ -282,7 +283,9 @@ async def chat_stream(request: ChatRequest):
     if use_rag:
         available, error_msg = check_rag_available()
         if not available:
-            raise FastAPIError(message=f"RAG indisponible: {error_msg}")
+            raise HTTPException(
+                status_code=503, detail=f"RAG indisponible: {error_msg}"
+            )
 
     if use_rag:
         retriever = get_rag_retriever()
