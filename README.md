@@ -171,6 +171,14 @@ Dans l'interface web, Entrée envoie la question et Maj+Entrée insère un saut 
 ligne : on peut coller un extrait de code Rust sur plusieurs lignes. Sur écran
 tactile, Entrée insère un saut de ligne et l'envoi se fait avec le bouton.
 
+L'UI, `/chat`, le CLI et l'évaluation utilisent les mêmes réglages
+d'échantillonnage, lus dans `configs/model_config.yaml` (section `inference` ;
+réglages propres à un modèle dans `sampling_by_model`). Les chemins
+conversationnels disposent d'un contexte de 8192 tokens (`n_ctx_chat`) pour
+l'historique ; si la question, l'historique et la documentation le dépassent,
+l'API répond `413` avec un message explicite au lieu de tronquer la réponse, et
+une réponse coupée par la limite de longueur est signalée comme telle.
+
 L'interface affiche aussi :
 - l'état de l'API dans l'en-tête, avec une nouvelle tentative automatique quand
   elle est hors ligne (`GET /health`, qui indique aussi si l'index RAG est
