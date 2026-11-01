@@ -52,6 +52,25 @@ def held_out_ids(prompts_path: Path) -> set[int]:
     return ids
 
 
+def parse_ids(value: str) -> set[int]:
+    """Parse une selection de prompts : "1-50", "51-91", "3,7,10-12"."""
+    ids: set[int] = set()
+    for part in value.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        if "-" in part:
+            start, end = (int(x) for x in part.split("-", 1))
+            if start > end:
+                raise argparse.ArgumentTypeError(f"plage invalide : {part}")
+            ids.update(range(start, end + 1))
+        else:
+            ids.add(int(part))
+    if not ids:
+        raise argparse.ArgumentTypeError("selection de prompts vide")
+    return ids
+
+
 def per_prompt_scores(reports: list[dict]) -> dict[int, dict]:
     """
     Regroupe les resultats par prompt sur plusieurs rapports (seeds).
@@ -174,10 +193,19 @@ def main():
         default=DEFAULT_PROMPTS,
         help="Fichier de prompts (pour --held-out)",
     )
+    parser.add_argument(
+        "--ids",
+        type=parse_ids,
+        default=None,
+        help='Restreindre a certains prompts, ex. "1-50" ou "51-91" (cumulable avec --held-out)',
+    )
     args = parser.parse_args()
 
     ref_reports, new_reports = load_reports(args.ref), load_reports(args.new)
     only_ids = held_out_ids(args.prompts) if args.held_out else None
+    if args.ids is not None:
+        only_ids = args.ids if only_ids is None else only_ids & args.ids
+        print(f"Prompts selectionnes : {len(args.ids)} (--ids)")
     result = compare(
         per_prompt_scores(ref_reports), per_prompt_scores(new_reports), only_ids=only_ids
     )

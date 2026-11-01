@@ -141,3 +141,16 @@ def test_repository_prompts_mark_lora_overlap():
     prompts = Path(__file__).parent.parent / "eval" / "prompts_fr.jsonl"
 
     assert len(held_out_ids(prompts)) == 91 - 27
+
+
+def test_parse_ids_ranges_and_lists():
+    import argparse
+
+    import pytest
+    from compare_evals import parse_ids
+
+    assert parse_ids("1-3,7, 10-11") == {1, 2, 3, 7, 10, 11}
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_ids("5-2")
+    with pytest.raises(argparse.ArgumentTypeError):
+        parse_ids(" , ")
