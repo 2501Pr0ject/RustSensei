@@ -1,7 +1,5 @@
 @import "tailwindcss";
 
-@custom-variant dark (&:where(.dark, .dark *));
-
 .rust-response p {
   margin-bottom: 0.5rem;
 }
@@ -56,9 +54,6 @@
   padding: 0.125rem 0.375rem;
   font-size: 0.875rem;
   color: #86efac;
-}
-.rust-response :where(code):dark {
-  background-color: rgba(74, 222, 128, 0.18);
 }
 /* Coloration syntaxique (highlight.js via rehype-highlight), palette terminal */
 .rust-response .hljs-keyword,

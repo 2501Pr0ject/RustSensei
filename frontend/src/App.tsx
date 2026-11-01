@@ -66,7 +66,6 @@ export function App() {
   const [messages, setMessages] = useState<ChatMessage[]>(loadPersistedHistory);
   const [input, setInput] = useState("");
   const [useRag, setUseRag] = useState(false);
-  const [dark, setDark] = useState(false);
   const [sending, setSending] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,22 +189,11 @@ export function App() {
   };
 
   return (
-    <div
-      className={`flex min-h-screen flex-col bg-[#020603] font-mono text-green-400 dark:bg-[#030a06] ${
-        dark ? "dark" : ""
-      }`}
-    >
+    <div className="flex min-h-screen flex-col bg-[#020603] font-mono text-green-400">
       <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-2 p-2">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-green-400/20 pb-2">
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-green-400">RustSensei</h1>
           <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setDark((d) => !d)}
-              className="rounded-lg border border-green-400/40 px-3 py-2.5 text-sm font-medium text-green-300 hover:bg-green-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60"
-            >
-              {dark ? "Clair" : "Sombre"}
-            </button>
             <button
               type="button"
               onClick={() => setUseRag((r) => !r)}
