@@ -17,6 +17,37 @@ const HISTORY_STORAGE_KEY = "rustsensei_history";
 
 const MAX_HISTORY_MESSAGES = 6;
 
+type ApiStatus = "checking" | "online" | "offline";
+
+const HEALTH_RETRY_MS = 10_000;
+
+interface HealthInfo {
+  online: boolean;
+  ragAvailable: boolean;
+  ragError: string | null;
+}
+
+async function fetchHealth(): Promise<HealthInfo> {
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 5000);
+  try {
+    const res = await fetch(`${API_URL}/health`, { signal: controller.signal });
+    if (!res.ok) {
+      return { online: false, ragAvailable: false, ragError: null };
+    }
+    const body = await res.json();
+    return {
+      online: body?.status === "ok",
+      ragAvailable: body?.rag_available !== false,
+      ragError: typeof body?.rag_error === "string" ? body.rag_error : null,
+    };
+  } catch {
+    return { online: false, ragAvailable: false, ragError: null };
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
 const EXAMPLE_QUESTIONS: { label: string; question: string }[] = [
   {
     label: "Pourquoi ce code ne compile pas ?",
@@ -177,6 +208,9 @@ export function App() {
   const [sending, setSending] = useState(false);
   const [streaming, setStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [apiStatus, setApiStatus] = useState<ApiStatus>("checking");
+  const [ragAvailable, setRagAvailable] = useState(true);
+  const [ragError, setRagError] = useState<string | null>(null);
   const conversationRef = useRef<HTMLElement>(null);
   // Suivi automatique du bas de la conversation, suspendu quand l'utilisateur
   // remonte pour relire (repris quand il revient en bas ou envoie un message).
@@ -196,6 +230,31 @@ export function App() {
       el.style.height = `${el.scrollHeight}px`;
     }
   }, [input]);
+
+  const checkHealth = async () => {
+    const health = await fetchHealth();
+    setApiStatus(health.online ? "online" : "offline");
+    if (health.online) {
+      setRagAvailable(health.ragAvailable);
+      setRagError(health.ragError);
+      if (!health.ragAvailable) {
+        setUseRag(false);
+      }
+    }
+  };
+
+  // Etat de l'API au chargement, puis nouvelle tentative periodique tant qu'elle est hors ligne.
+  useEffect(() => {
+    void checkHealth();
+  }, []);
+
+  useEffect(() => {
+    if (apiStatus !== "offline") {
+      return;
+    }
+    const timer = window.setInterval(() => void checkHealth(), HEALTH_RETRY_MS);
+    return () => window.clearInterval(timer);
+  }, [apiStatus]);
 
   const scrollToBottom = () => {
     const el = conversationRef.current;
@@ -342,7 +401,8 @@ export function App() {
           return next;
         });
       } else {
-        setError("Impossible de joindre le backend RustSensei. Lancez `make api`.");
+        // La banniere "API hors ligne" informe l'utilisateur et relance les verifications.
+        setApiStatus("offline");
       }
     } finally {
       abortRef.current = null;
@@ -384,19 +444,44 @@ export function App() {
     <div className="flex h-dvh flex-col bg-[#020603] font-mono text-green-400">
       <div className="mx-auto flex min-h-0 w-full max-w-3xl flex-1 flex-col gap-2 p-2">
         <header className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-green-400/20 pb-2">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-green-400">RustSensei</h1>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-green-400">RustSensei</h1>
+            <span className="flex items-center gap-1.5 text-xs text-green-500/70">
+              <span
+                aria-hidden="true"
+                className={`inline-block h-2 w-2 rounded-full ${
+                  apiStatus === "online"
+                    ? "bg-green-400"
+                    : apiStatus === "offline"
+                      ? "bg-red-400"
+                      : "animate-pulse bg-yellow-400"
+                }`}
+              />
+              {apiStatus === "online"
+                ? "API en ligne"
+                : apiStatus === "offline"
+                  ? "API hors ligne"
+                  : "Connexion…"}
+            </span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setUseRag((r) => !r)}
               aria-pressed={useRag}
-              className={`rounded-lg border px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60 ${
+              disabled={!ragAvailable}
+              title={
+                ragAvailable
+                  ? "Appuyer les réponses sur la documentation officielle Rust"
+                  : `Index RAG indisponible${ragError ? ` : ${ragError}` : ""}`
+              }
+              className={`rounded-lg border px-3 py-2.5 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/60 disabled:cursor-not-allowed disabled:opacity-40 ${
                 useRag
                   ? "border-green-400 bg-green-400 text-black"
                   : "border-green-400/40 text-green-300 hover:bg-green-400/10"
               }`}
             >
-              RAG : {useRag ? "ON" : "OFF"}
+              RAG : {ragAvailable ? (useRag ? "ON" : "OFF") : "indisponible"}
             </button>
             <button
               type="button"
@@ -408,6 +493,24 @@ export function App() {
           </div>
         </header>
 
+        {apiStatus === "offline" ? (
+          <div
+            role="alert"
+            className="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-red-400/40 px-3 py-2 text-sm text-red-300"
+          >
+            <span>
+              API hors ligne : lancez <code className="text-red-200">make api</code>. Nouvelle
+              tentative automatique toutes les {HEALTH_RETRY_MS / 1000} s.
+            </span>
+            <button
+              type="button"
+              onClick={() => void checkHealth()}
+              className="rounded border border-red-400/50 px-2 py-1 text-xs hover:bg-red-400/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/60"
+            >
+              Réessayer
+            </button>
+          </div>
+        ) : null}
         {/* Pas d'aria-live sur la liste : le streaming ferait relire le message a chaque fragment.
             Les lecteurs d'ecran sont informes via la zone de statut ci-dessous. */}
         <p role="status" className="sr-only">
