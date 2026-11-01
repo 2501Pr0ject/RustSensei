@@ -240,7 +240,9 @@ export function App() {
             >
               {m.role === "assistant" ? (
                 <div className="rust-response text-base leading-relaxed">
-                  <ReactMarkdown remarkPlugins={[remarkGfm, rehypeHighlight]}>{m.content}</ReactMarkdown>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                    {m.content}
+                  </ReactMarkdown>
                 </div>
               ) : (
                 <p className="whitespace-pre-wrap text-base">{m.content}</p>

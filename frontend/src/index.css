@@ -60,6 +60,41 @@
 .rust-response :where(code):dark {
   background-color: rgba(74, 222, 128, 0.18);
 }
+/* Coloration syntaxique (highlight.js via rehype-highlight), palette terminal */
+.rust-response .hljs-keyword,
+.rust-response .hljs-selector-tag {
+  color: #facc15;
+}
+.rust-response .hljs-string,
+.rust-response .hljs-char,
+.rust-response .hljs-regexp {
+  color: #fdba74;
+}
+.rust-response .hljs-number,
+.rust-response .hljs-literal {
+  color: #f9a8d4;
+}
+.rust-response .hljs-type,
+.rust-response .hljs-built_in,
+.rust-response .hljs-class .hljs-title {
+  color: #67e8f9;
+}
+.rust-response .hljs-title,
+.rust-response .hljs-title.function_ {
+  color: #bbf7d0;
+  font-weight: 600;
+}
+.rust-response .hljs-meta,
+.rust-response .hljs-attr,
+.rust-response .hljs-symbol,
+.rust-response .hljs-variable {
+  color: #c4b5fd;
+}
+.rust-response .hljs-comment,
+.rust-response .hljs-quote {
+  color: #4b7c5a;
+  font-style: italic;
+}
 .rust-response table {
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
