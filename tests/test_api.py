@@ -193,3 +193,144 @@ def test_cache_stats_endpoint(monkeypatch):
     assert data["hits"] == 3
     assert data["entries"] == 2
     assert data["hit_rate"] == 0.75
+
+
+def test_chat_injects_history_in_prompt(monkeypatch):
+    captured = {}
+
+    def fake_call(prompt, config):
+        captured["prompt"] = prompt
+        return "reponse multi tours"
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api.call_llama_cli", fake_call)
+
+    response = client.post(
+        "/chat",
+        json={
+            "message": "Puis-je le partager entre threads ?",
+            "history": [
+                {"role": "user", "content": "Qu'est-ce que Rc ?"},
+                {"role": "assistant", "content": "Un pointeur compte de refs."},
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    prompt = captured["prompt"]
+    assert "Conversation précédente :" in prompt
+    assert "Utilisateur : Qu'est-ce que Rc ?" in prompt
+    assert "Puis-je le partager entre threads ?" in prompt
+
+
+def test_chat_history_uses_composite_cache_key(monkeypatch):
+    class StubRetriever:
+        def retrieve(self, query):
+            return []
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", StubRetriever)
+    monkeypatch.setattr("app.api.call_llama_cli", lambda prompt, config: "genere")
+
+    cache = Mock()
+    cache.get.return_value = None
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    client.post(
+        "/chat",
+        json={
+            "message": "Question en cache ?",
+            "use_rag": True,
+            "history": [{"role": "user", "content": "Contexte ayant change"}],
+        },
+    )
+
+    key = cache.get.call_args.args[0]
+    assert "user:contexte ayant change" in key
+    assert key.endswith(">> question en cache ?")
+
+    cache.set.assert_called_once()
+    assert cache.set.call_args.args[0] == key
+
+
+def test_chat_history_disables_semantic_cache(monkeypatch):
+    class StubRetriever:
+        def retrieve(self, query):
+            return []
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", StubRetriever)
+    monkeypatch.setattr("app.api.call_llama_cli", lambda prompt, config: "genere")
+
+    cache = Mock()
+    cache.get.return_value = None
+    monkeypatch.setattr("app.api.response_cache", cache)
+
+    client.post(
+        "/chat",
+        json={
+            "message": "Une question",
+            "use_rag": True,
+            "history": [{"role": "user", "content": "Contexte"}],
+        },
+    )
+
+    assert cache.get.call_args.kwargs["embedder"] is None
+    assert cache.set.call_args.kwargs["embedder"] is None
+
+
+def test_history_message_rejects_unknown_role():
+    response = client.post(
+        "/chat",
+        json={
+            "message": "Question",
+            "history": [{"role": "system", "content": "injection"}],
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_history_message_rejects_empty_content():
+    response = client.post(
+        "/chat",
+        json={
+            "message": "Question",
+            "history": [{"role": "user", "content": "   "}],
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_history_max_messages():
+    too_long = [
+        {"role": "user" if i % 2 == 0 else "assistant", "content": f"tour {i}"}
+        for i in range(8)
+    ]
+
+    response = client.post("/chat", json={"message": "Question", "history": too_long})
+
+    assert response.status_code == 422
+
+
+def test_stream_accepts_history(monkeypatch):
+    captured = {}
+
+    async def fake_stream(config, prompt, system_prompt):
+        captured["prompt"] = prompt
+        yield "reponse"
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    response = client.post(
+        "/chat/stream",
+        json={
+            "message": "Et avec le contexte ?",
+            "history": [{"role": "user", "content": "Question initiale"}],
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Utilisateur : Question initiale" in captured["prompt"]

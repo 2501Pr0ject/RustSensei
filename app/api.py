@@ -9,14 +9,15 @@ import socket
 import subprocess
 from collections.abc import AsyncIterator
 from pathlib import Path
+from typing import Literal
 
 import httpx
 from fastapi import FastAPI
 from fastapi.exceptions import FastAPIError
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .cache import response_cache
+from .cache import ResponseCache, response_cache
 from .chat import build_prompt, call_llama_cli, get_rag_retriever, load_config
 from .rag import check_rag_available
 
@@ -26,12 +27,44 @@ app = FastAPI(
     version="0.1.0",
 )
 
+# Historique de conversation transmis par les clients (3 derniers echanges).
+MAX_HISTORY_MESSAGES = 6
+MAX_HISTORY_CHARS = 4000
+
+
+class HistoryMessage(BaseModel):
+    """Un tour precedent de conversation."""
+
+    role: Literal["user", "assistant"]
+    content: str
+
+    @field_validator("content")
+    @classmethod
+    def _strip_non_empty(cls, value: str) -> str:
+        stripped = (value or "").strip()
+        if not stripped:
+            raise ValueError("Le contenu du message ne peut pas etre vide")
+        return stripped
+
 
 class ChatRequest(BaseModel):
     """Requete de chat."""
 
     message: str
     use_rag: bool = False
+    history: list[HistoryMessage] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _cap_history(self):
+        if self.history and len(self.history) > MAX_HISTORY_MESSAGES:
+            raise ValueError(
+                f"L'historique est limite a {MAX_HISTORY_MESSAGES} messages"
+            )
+        if sum(len(m.content) for m in self.history) > MAX_HISTORY_CHARS:
+            raise ValueError(
+                f"L'historique est limite a {MAX_HISTORY_CHARS} caracteres"
+            )
+        return self
 
 
 class ChatResponse(BaseModel):
@@ -147,6 +180,28 @@ async def _sleep(seconds: float) -> None:
     await asyncio.sleep(seconds)
 
 
+def _history_dicts(request: ChatRequest) -> list[dict]:
+    """Retourne l'historique de la requete comme liste de dicts."""
+    return [msg.model_dump() for msg in request.history]
+
+
+def _cache_query(request: ChatRequest) -> str:
+    """Cle de cache de la requete (inclut l'historique si present)."""
+    return ResponseCache.composite_key(_history_dicts(request), request.message)
+
+
+def _cache_embedder(request: ChatRequest, retriever):
+    """
+    Extrait un embedder pour le cache semantique, sans historique seulement.
+
+    En multi-tours, le matching semantique est desactive : une reformulation
+    dont le contexte a change doit generer une nouvelle reponse.
+    """
+    if request.history:
+        return None
+    return getattr(retriever, "embed_query", None)
+
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     """Repond a une question en utilisant le pipeline RAG (avec cache) + llama.cpp."""
@@ -166,10 +221,11 @@ def chat(request: ChatRequest) -> ChatResponse:
         retriever = get_rag_retriever()
 
     response = None
-    embedder = getattr(retriever, "embed_query", None)
+    cache_query = _cache_query(request)
+    cache_embedder = _cache_embedder(request, retriever)
 
     if retriever:
-        cached = response_cache.get(request.message, embedder=embedder)
+        cached = response_cache.get(cache_query, embedder=cache_embedder)
         if cached is not None:
             response = cached["response"]
             citations = cached["citations"]
@@ -180,15 +236,27 @@ def chat(request: ChatRequest) -> ChatResponse:
                 citations = retriever.get_citations(chunks)
 
             response = call_llama_cli(
-                build_prompt(request.message, config, context=context), config
+                build_prompt(
+                    request.message,
+                    config,
+                    context=context,
+                    history=_history_dicts(request),
+                ),
+                config,
             )
             response_cache.set(
-                request.message, response, citations, embedder=embedder
+                cache_query, response, citations, embedder=cache_embedder
             )
 
     if response is None:
         response = call_llama_cli(
-            build_prompt(request.message, config, context=context), config
+            build_prompt(
+                request.message,
+                config,
+                context=context,
+                history=_history_dicts(request),
+            ),
+            config
         )
 
     return ChatResponse(
@@ -219,13 +287,14 @@ async def chat_stream(request: ChatRequest):
     if use_rag:
         retriever = get_rag_retriever()
 
-    embedder = getattr(retriever, "embed_query", None)
+    cache_query = _cache_query(request)
+    cache_embedder = _cache_embedder(request, retriever)
     cached = None
     context = None
     citations = []
 
     if retriever is not None:
-        cached = response_cache.get(request.message, embedder=embedder)
+        cached = response_cache.get(cache_query, embedder=cache_embedder)
         if cached is not None:
             citations = cached["citations"]
         else:
@@ -233,6 +302,8 @@ async def chat_stream(request: ChatRequest):
             if chunks:
                 context = retriever.format_context(chunks)
                 citations = retriever.get_citations(chunks)
+
+    history = _history_dicts(request)
 
     headers = {}
     if retriever is not None:
@@ -246,7 +317,9 @@ async def chat_stream(request: ChatRequest):
             return
 
         full_response = ""
-        full_prompt = build_prompt(request.message, config, context=context)
+        full_prompt = build_prompt(
+            request.message, config, context=context, history=history
+        )
         async for token in _stream_llama_response(
             config, full_prompt, config["prompt"]["system"]
         ):
@@ -255,7 +328,7 @@ async def chat_stream(request: ChatRequest):
 
         if retriever is not None and full_response:
             response_cache.set(
-                request.message, full_response, citations, embedder=embedder
+                cache_query, full_response, citations, embedder=cache_embedder
             )
 
     return StreamingResponse(
