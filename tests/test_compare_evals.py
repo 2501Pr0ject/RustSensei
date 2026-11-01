@@ -99,3 +99,45 @@ def test_seed_spread():
     reports = [_report(_result(1, 2.0), _result(2, 4.0)), _report(_result(1, 3.0), _result(2, 3.0))]
 
     assert seed_spread(reports) == [3.0, 3.0]
+
+
+def test_held_out_ids_excludes_training_prompts(tmp_path):
+    import json
+
+    from compare_evals import held_out_ids
+
+    prompts = tmp_path / "prompts.jsonl"
+    prompts.write_text(
+        "\n".join(
+            json.dumps(p)
+            for p in [
+                {"id": 1, "prompt": "a"},
+                {"id": 2, "prompt": "b", "in_lora_train": True},
+                {"id": 3, "prompt": "c", "in_lora_train": False},
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert held_out_ids(prompts) == {1, 3}
+
+
+def test_compare_restricted_to_ids():
+    ref = per_prompt_scores([_report(_result(1, 2.0), _result(2, 2.0))])
+    new = per_prompt_scores([_report(_result(1, 5.0), _result(2, 3.0))])
+
+    result = compare(ref, new, only_ids={2})
+
+    assert result["n_prompts"] == 1
+    assert result["delta"] == 1.0
+
+
+def test_repository_prompts_mark_lora_overlap():
+    from pathlib import Path
+
+    from compare_evals import held_out_ids
+
+    prompts = Path(__file__).parent.parent / "eval" / "prompts_fr.jsonl"
+
+    assert len(held_out_ids(prompts)) == 91 - 15

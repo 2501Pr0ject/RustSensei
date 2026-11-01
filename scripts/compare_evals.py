@@ -23,6 +23,7 @@ from collections import defaultdict
 from pathlib import Path
 
 BOOTSTRAP_SAMPLES = 10_000
+DEFAULT_PROMPTS = Path(__file__).parent.parent / "eval" / "prompts_fr.jsonl"
 
 
 def load_reports(paths: list[Path]) -> list[dict]:
@@ -32,6 +33,23 @@ def load_reports(paths: list[Path]) -> list[dict]:
         with open(path, encoding="utf-8") as f:
             reports.append(json.load(f))
     return reports
+
+
+def held_out_ids(prompts_path: Path) -> set[int]:
+    """
+    Prompts absents des donnees d'entrainement LoRA (sans "in_lora_train": true).
+
+    A utiliser pour comparer un modele fine-tune sans l'avantager sur les
+    questions qu'il a deja vues. Le marquage doit etre mis a jour si le dataset
+    d'entrainement (data/mlx_train) change.
+    """
+    ids = set()
+    with open(prompts_path, encoding="utf-8") as f:
+        for line in f:
+            prompt = json.loads(line)
+            if not prompt.get("in_lora_train", False):
+                ids.add(prompt["id"])
+    return ids
 
 
 def per_prompt_scores(reports: list[dict]) -> dict[int, dict]:
@@ -77,9 +95,15 @@ def paired_bootstrap_ci(
     return means[int(0.025 * samples)], means[int(0.975 * samples) - 1]
 
 
-def compare(ref: dict[int, dict], new: dict[int, dict]) -> dict:
+def compare(
+    ref: dict[int, dict],
+    new: dict[int, dict],
+    only_ids: set[int] | None = None,
+) -> dict:
     """Compare deux ensembles de scores par prompt (prompts communs uniquement)."""
     common = sorted(set(ref) & set(new))
+    if only_ids is not None:
+        common = [pid for pid in common if pid in only_ids]
     deltas = [
         statistics.fmean(new[pid]["scores"]) - statistics.fmean(ref[pid]["scores"])
         for pid in common
@@ -139,10 +163,26 @@ def main():
     parser = argparse.ArgumentParser(description="Comparaison de rapports d'evaluation")
     parser.add_argument("--ref", nargs="+", required=True, type=Path, help="Rapports de reference")
     parser.add_argument("--new", nargs="+", required=True, type=Path, help="Rapports candidats")
+    parser.add_argument(
+        "--held-out",
+        action="store_true",
+        help="Exclure les prompts presents dans les donnees d'entrainement LoRA",
+    )
+    parser.add_argument(
+        "--prompts",
+        type=Path,
+        default=DEFAULT_PROMPTS,
+        help="Fichier de prompts (pour --held-out)",
+    )
     args = parser.parse_args()
 
     ref_reports, new_reports = load_reports(args.ref), load_reports(args.new)
-    result = compare(per_prompt_scores(ref_reports), per_prompt_scores(new_reports))
+    only_ids = held_out_ids(args.prompts) if args.held_out else None
+    result = compare(
+        per_prompt_scores(ref_reports), per_prompt_scores(new_reports), only_ids=only_ids
+    )
+    if args.held_out:
+        print("Prompts hors entrainement LoRA uniquement (--held-out)")
 
     for name, reports in (("Reference", ref_reports), ("Candidat", new_reports)):
         spread = seed_spread(reports)
