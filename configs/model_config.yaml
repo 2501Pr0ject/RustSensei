@@ -3,7 +3,8 @@
 
 # Chemins (relatifs à la racine du projet)
 paths:
-  llama_cli: "vendor/llama.cpp/build/bin/llama-cli"
+  # llama-completion : generation brute (-no-cnv) ; llama-cli est un client de chat depuis 2025
+  llama_cli: "vendor/llama.cpp/build/bin/llama-completion"
   model: "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
 
 # Modèle

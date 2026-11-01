@@ -14,9 +14,10 @@ SDKROOT := $(shell if [ -d "/Library/Developer/CommandLineTools/SDKs/MacOSX15.5.
 
 # llama.cpp (pinned revision for reproducibility)
 LLAMA_REPO := https://github.com/ggerganov/llama.cpp.git
-LLAMA_REV := b4823
+LLAMA_REV := b12032
 LLAMA_DIR := vendor/llama.cpp
-LLAMA_CLI := $(LLAMA_DIR)/build/bin/llama-cli
+# Generation brute (-no-cnv) : llama-completion depuis que llama-cli est un client de chat
+LLAMA_CLI := $(LLAMA_DIR)/build/bin/llama-completion
 
 # Modèle GGUF
 MODEL_REPO := Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF
