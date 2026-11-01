@@ -115,7 +115,15 @@ make eval
 
 # Vérification compilation
 make compile-check
+
+# Interface web (deux terminaux)
+make api   # API FastAPI sur http://localhost:8000
+make web   # UI sur http://localhost:5173
 ```
+
+Dans l'interface web, Entrée envoie la question et Maj+Entrée insère un saut de
+ligne : on peut coller un extrait de code Rust sur plusieurs lignes. Sur écran
+tactile, Entrée insère un saut de ligne et l'envoi se fait avec le bouton.
 
 ### Exemple
 
@@ -207,7 +215,7 @@ Fonctionnalités :
 - Toggle RAG on/off
 - Citations avec liens vers docs
 - Syntax highlighting Rust
-- Mode sombre
+- Saisie multi-ligne pour coller du code
 
 ### M9 — Dataset étendu (terminé)
 
