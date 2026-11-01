@@ -220,10 +220,10 @@ export function App() {
           {messages.map((m, i) => (
             <div
               key={i}
-              className={`rounded-2xl px-4 py-3 ${
+              className={`min-w-0 rounded-2xl px-4 py-3 ${
                 m.role === "user"
-                  ? "self-end rounded-br-md border bg-green-400/10 text-green-300"
-                  : "self-start rounded-bl-md border-green-400/30 bg-transparent text-green-400"
+                  ? "max-w-[85%] self-end rounded-br-md border bg-green-400/10 text-green-300"
+                  : "w-full self-start rounded-bl-md border-green-400/30 bg-transparent text-green-400"
               }`}
             >
               {m.role === "assistant" ? (
@@ -233,7 +233,7 @@ export function App() {
                   </ReactMarkdown>
                 </div>
               ) : (
-                <p className="whitespace-pre-wrap text-base">{m.content}</p>
+                <p className="whitespace-pre-wrap text-base [overflow-wrap:anywhere]">{m.content}</p>
               )}
               {m.role === "assistant" && m.cached ? (
                 <div className="mb-1 text-xs text-green-500/70">

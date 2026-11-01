@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+.rust-response {
+  overflow-wrap: anywhere;
+}
+.rust-response pre {
+  max-width: 100%;
+  overflow-wrap: normal;
+}
 .rust-response p {
   margin-bottom: 0.5rem;
 }
@@ -91,9 +98,11 @@
   font-style: italic;
 }
 .rust-response table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
   margin-top: 0.75rem;
   margin-bottom: 0.75rem;
-  width: 100%;
   border-collapse: collapse;
 }
 .rust-response th,
