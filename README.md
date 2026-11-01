@@ -23,7 +23,7 @@ make chat
 - **100% local** - Fonctionne sans connexion internet (après installation)
 - **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
-- **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF et rerank multilingue
+- **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF, graphe de connaissances et rerank multilingue
 - **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Compilation : 61%** - Évaluation auto sur 50 prompts
@@ -63,6 +63,12 @@ Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
 lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
 cross-encoder multilingue. Les termes exacts (noms d'API, types) sont ainsi
 mieux couverts que par la recherche dense seule.
+
+Le graphe de connaissances relie les concepts Rust (ownership, Send/Sync, Rc,
+lifetimes, Result...) avec leurs alias FR/EN (`configs/knowledge_graph.yaml`).
+Une question qui croise plusieurs domaines fait remonter les pages des concepts
+voisins via un canal lexical supplémentaire : « Pourquoi RefCell ne peut pas
+être partagé entre threads ? » récupère aussi les pages Send/Sync.
 
 Statistiques du cache :
 
@@ -108,7 +114,7 @@ let s2 = s.clone();  // ou let s2 = &s;
 
 ```
 RustSensei/
-├── app/           # CLI, API et RAG (chat.py, rag.py, cache.py)
+├── app/           # CLI, API et RAG (chat.py, rag.py, cache.py, knowledge.py)
 ├── scripts/       # Evaluation, training, export
 ├── configs/       # Configuration modele, RAG, training
 ├── data/          # Dataset d'entrainement
