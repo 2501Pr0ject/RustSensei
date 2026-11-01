@@ -85,3 +85,17 @@ def test_build_prompt_skips_invalid_history_turns():
 
     assert "injection" not in prompt
     assert "Vraie question" in prompt
+
+
+def test_build_user_content_has_no_chatml_template():
+    from app.chat import build_user_content
+
+    content = build_user_content(
+        "Question ?",
+        context="Doc",
+        history=[{"role": "user", "content": "Avant"}],
+    )
+
+    assert "<|im_start|>" not in content
+    assert content.startswith("Conversation précédente :")
+    assert content.endswith("Question : Question ?")

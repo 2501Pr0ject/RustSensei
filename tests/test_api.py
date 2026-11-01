@@ -336,6 +336,27 @@ def test_stream_accepts_history(monkeypatch):
     assert "Utilisateur : Question initiale" in captured["prompt"]
 
 
+def test_stream_sends_unformatted_user_content(monkeypatch):
+    """llama-server applique le template : pas de ChatML dans le message user."""
+    captured = {}
+
+    async def fake_stream(config, user_content, system_prompt):
+        captured["user_content"] = user_content
+        captured["system"] = system_prompt
+        yield "reponse"
+
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: None)
+    monkeypatch.setattr("app.api._stream_llama_response", fake_stream)
+
+    response = client.post("/chat/stream", json={"message": "Qu'est-ce qu'un Rc ?"})
+
+    assert response.status_code == 200
+    assert "<|im_start|>" not in captured["user_content"]
+    assert "Tu es RustSensei" not in captured["user_content"]
+    assert captured["user_content"] == "Qu'est-ce qu'un Rc ?"
+    assert "Tu es RustSensei" in captured["system"]
+
+
 def test_chat_rag_unavailable_returns_503(monkeypatch):
     monkeypatch.setattr(
         "app.api.check_rag_available", lambda: (False, "index absent")

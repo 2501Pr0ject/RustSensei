@@ -80,24 +80,22 @@ def format_history(history) -> str:
     return "Conversation précédente :\n" + "\n".join(lines)
 
 
-def build_prompt(
+def build_user_content(
     user_message: str,
-    config: dict,
     context: str = None,
     history: list = None,
 ) -> str:
     """
-    Construit le prompt avec le template ChatML.
+    Construit le contenu du message utilisateur (sans template ChatML).
+
+    Utilise tel quel par l'API chat de llama-server, qui applique lui-meme
+    le template du modele, et par build_prompt pour llama-cli.
 
     Args:
         user_message: Question de l'utilisateur.
-        config: Configuration du modele.
         context: Contexte RAG (documentation) optionnel.
         history: Tours precedents de la conversation ({role, content}).
     """
-    system = config["prompt"]["system"]
-    template = config["prompt"]["template"]
-
     if context:
         user_content = (
             f"Contexte de la documentation Rust officielle :\n{context}\n\n"
@@ -110,7 +108,28 @@ def build_prompt(
     if history_block:
         user_content = f"{history_block}\n\n---\n{user_content}"
 
-    return template.format(system=system, user=user_content)
+    return user_content
+
+
+def build_prompt(
+    user_message: str,
+    config: dict,
+    context: str = None,
+    history: list = None,
+) -> str:
+    """
+    Construit le prompt complet avec le template ChatML (pour llama-cli).
+
+    Args:
+        user_message: Question de l'utilisateur.
+        config: Configuration du modele.
+        context: Contexte RAG (documentation) optionnel.
+        history: Tours precedents de la conversation ({role, content}).
+    """
+    user_content = build_user_content(user_message, context=context, history=history)
+    return config["prompt"]["template"].format(
+        system=config["prompt"]["system"], user=user_content
+    )
 
 
 def call_llama_cli(prompt: str, config: dict) -> str:

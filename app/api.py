@@ -17,7 +17,13 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from .cache import ResponseCache, response_cache
-from .chat import build_prompt, call_llama_cli, get_rag_retriever, load_config
+from .chat import (
+    build_prompt,
+    build_user_content,
+    call_llama_cli,
+    get_rag_retriever,
+    load_config,
+)
 from .rag import check_rag_available
 
 app = FastAPI(
@@ -87,14 +93,17 @@ def _find_free_port() -> int:
 
 
 async def _stream_llama_response(
-    config: dict, prompt: str, system: str
+    config: dict, user_content: str, system: str
 ) -> AsyncIterator[str]:
     """
     Genere une reponse via llama-server (API OpenAI-compatible) en streaming.
 
+    llama-server applique lui-meme le template de chat du modele : le contenu
+    utilisateur ne doit donc pas etre deja formate en ChatML.
+
     Args:
         config: Configuration du modele/inference.
-        prompt: Prompt complet (ChatML) de la question.
+        user_content: Contenu du message utilisateur (sans template ChatML).
         system: Prompt system.
 
     Yields:
@@ -145,7 +154,7 @@ async def _stream_llama_response(
                     "model": "rustsensei",
                     "messages": [
                         {"role": "system", "content": system},
-                        {"role": "user", "content": prompt},
+                        {"role": "user", "content": user_content},
                     ],
                     "stream": True,
                 },
@@ -320,11 +329,11 @@ async def chat_stream(request: ChatRequest):
             return
 
         full_response = ""
-        full_prompt = build_prompt(
-            request.message, config, context=context, history=history
+        user_content = build_user_content(
+            request.message, context=context, history=history
         )
         async for token in _stream_llama_response(
-            config, full_prompt, config["prompt"]["system"]
+            config, user_content, config["prompt"]["system"]
         ):
             full_response += token
             yield token
