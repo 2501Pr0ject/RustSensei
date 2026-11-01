@@ -24,6 +24,7 @@ make chat
 - **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
 - **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF et rerank multilingue
+- **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Compilation : 61%** - Évaluation auto sur 50 prompts
 - **Français** - Réponses pédagogiques en français (100%)
@@ -51,6 +52,10 @@ La recherche est d'abord exacte, puis sémantique : si une question proche a dé
 réponse est réutilisée au-delà du seuil `cache.semantic.threshold` (0.85 par
 défaut). Les reformulations du type « Comment créer un thread ? » / « Comment on
 crée un thread ? » touchent ainsi le cache sans génération.
+
+Les réponses RAG affichent leurs sources dans l'interface : le backend transmet
+les citations via le header `X-Citations` (base64/UTF-8) et l'UI les rend sous
+forme de liens vers la documentation officielle.
 
 Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
 lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
