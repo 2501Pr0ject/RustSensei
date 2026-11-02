@@ -27,29 +27,29 @@ make chat
 - **Sources cliquables** - Citations RAG affichées en liens dans l'interface
 - **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
 - **Conversation multi-tours** - Historique (3 derniers échanges) envoyé au modèle contextuel
-- **Compilation : 49%** des blocs de code - Évaluation auto sur 91 prompts, 3 graines
+- **Compilation : 50%** des blocs de code - Évaluation auto sur 91 prompts, 3 graines
 - **Français** - Réponses pédagogiques en français (100%)
 
 ## Métriques
 
 Référence actuelle : Qwen2.5-Coder-1.5B-Instruct (GGUF officiel Qwen, Q4_K_M),
-RAG activé (retrieval hybride dense + BM25, graphe de connaissances, reranker
-multilingue).
+llama.cpp b12032, RAG activé (retrieval hybride dense + BM25, graphe de
+connaissances, reranker multilingue).
 
 | Métrique | Valeur |
 |----------|--------|
-| Score global | 3.05/5 (graines 42, 1, 2 : 3.08 / 3.10 / 2.98) |
+| Score global | 3.00/5 (graines 42, 1, 2 : 3.02 / 3.04 / 2.94) |
 | Langue FR | 99% |
-| Compilation (blocs) | 49% (173/351) |
-| Format en 5 sections | 14% des réponses |
+| Compilation (blocs) | 50% (162/322) |
+| Format en 5 sections | 13% des réponses |
 | Dataset | 221 exemples |
 
 *Évaluation : 91 prompts (`eval/prompts_fr.jsonl`), 3 graines, notation v2 :
 mots-clés avec alternatives, casse et accents normalisés, frontière de mot à
 gauche (`SCORER_VERSION` dans `scripts/evaluate.py`, enregistré dans chaque
-rapport). 27 prompts recoupent les données d'entraînement LoRA
-(`"in_lora_train": true`) ; les 64 autres forment le sous-ensemble « hors
-entraînement » (`--held-out`).*
+rapport avec la version de llama.cpp et l'échantillonnage effectif). 27 prompts
+recoupent les données d'entraînement LoRA (`"in_lora_train": true`) ; les 64
+autres forment le sous-ensemble « hors entraînement » (`--held-out`).*
 
 **Anciens chiffres recalculés.** Les évaluations de janvier et du 1er novembre
 (50 prompts) ont été renotées avec la notation v2 à partir des réponses
@@ -61,23 +61,39 @@ retrieval cite en revanche moins souvent des sources hors sujet (Rustonomicon,
 Async Book ou Edition Guide pour une question qui n'y touche pas : 26 citations
 au lieu de 42).
 
+**Version de llama.cpp.** Le passage de b4823 à b12032 (nécessaire pour
+Qwen3) modifie 17 réponses sur 91 de la référence à graine égale et abaisse son
+score de 3.05 à 3.00 (-0.05, IC95 [-0.10, -0.01]). Les comparaisons entre
+modèles évalués sous des versions différentes portent cet écart.
+
 ### Modèles évalués
 
-| Modèle | Score | Écart à la référence (IC95) | FR | 5 sections | Compilation |
-|--------|-------|-----------------------------|----|------------|-------------|
-| Qwen2.5-Coder-1.5B (référence, 3 graines) | 3.05 | — | 99% | 14% | 49% |
-| Qwen2.5-Coder-3B (GGUF officiel, 3 graines) | 3.57 | +0.52 [+0.39, +0.67] | 100% | 92% | 53% |
-| LoRA correctif de janvier (graine 42) | 2.63 | -0.45 [-0.72, -0.16] (vs graine 42) | 80% | 5% | 34% |
+| Modèle | llama.cpp | Score | Écart (IC95) | FR | 5 sections | Compilation | Licence |
+|--------|-----------|-------|--------------|----|------------|-------------|---------|
+| Qwen2.5-Coder-1.5B (référence) | b12032 | 3.00 | — | 99% | 13% | 50% | Apache 2.0 |
+| Qwen3-4B-Instruct-2507 (GGUF bartowski) | b12032 | 3.99 | +0.99 [+0.83, +1.16] | 100% | 100% | 48% | Apache 2.0 |
+| Qwen2.5-Coder-3B (GGUF officiel) | b4823 | 3.57 | +0.52 [+0.39, +0.67] (vs réf. b4823) | 100% | 92% | 53% | `qwen-research` |
+| LoRA correctif de janvier (graine 42) | b4823 | 2.63 | -0.45 [-0.72, -0.16] (vs réf. b4823, graine 42) | 80% | 5% | 34% | — |
 
-- **3B** : l'écart est significatif sur tous les sous-ensembles — prompts 1-50
-  +0.34, prompts 51-91 +0.74, hors entraînement +0.55 [+0.37, +0.74]. Coût :
-  fichier de 2.1 Go, environ 34 s par réponse en évaluation contre 14 s pour le
-  1.5B (réponses plus longues, médiane 293 mots contre 184). Licence
-  `qwen-research` (le 1.5B est sous Apache 2.0) : à vérifier avant adoption.
+*3 graines par modèle, sauf le LoRA (graine 42).*
+
+- **Qwen3-4B-Instruct-2507** : écart significatif sur tous les sous-ensembles —
+  hors entraînement +1.07 [+0.86, +1.27], prompts 1-50 +0.77, prompts 51-91
+  +1.26 — et +0.42 [+0.30, +0.53] face au 3B (+0.46 hors entraînement), malgré
+  la différence de version de llama.cpp. Gains les plus forts : testing,
+  lifetimes, smart pointers, closures, concurrency. GGUF communautaire
+  (bartowski, Q4_K_M, 2.5 Go) : Qwen ne publie pas de GGUF officiel pour ce
+  modèle ; son gabarit de chat produit exactement le même prompt que le gabarit
+  officiel. Coût : environ 53 s par réponse en évaluation contre 14 s pour le
+  1.5B (réponses plus longues : médiane 766 tokens contre 303) ; 25 réponses
+  sur 273 (9 %) atteignent la limite de 1024 tokens et sont coupées, ce qui le
+  pénalise plutôt. Évalué avec les réglages d'échantillonnage communs, pas ceux
+  recommandés par Qwen (top-k 20, top-p 0.8, min-p 0).
+- **3B** : non retenu, licence `qwen-research` (non commerciale).
 - **LoRA correctif** : résultat rapporté pour information uniquement. Il a été
   entraîné avec un autre prompt système, sans contexte RAG, et quantifié par un
   pipeline local différent du GGUF officiel : il n'est pas représentatif d'un
-  futur LoRA v2.
+  LoRA v2, piste abandonnée.
 
 Reproduire :
 
