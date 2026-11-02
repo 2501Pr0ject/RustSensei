@@ -204,3 +204,78 @@ def test_run_metadata_records_llama_cpp_version_and_binary():
 
     assert meta["llama_cli"] == "vendor/inexistant/llama-completion"
     assert meta["llama_cpp_rev"] is None
+
+
+def test_truncation_status():
+    from evaluate import truncation_status
+
+    assert truncation_status("Réponse complète. [end of text]\n\n", "") == (False, None)
+    assert truncation_status("Réponse coupée", "") == (True, "max_tokens")
+    assert truncation_status(
+        "Réponse coupée", "context full and context shift is disabled => stopping"
+    ) == (True, "context_full")
+
+
+def _eval_config(tmp_path, overrides=None):
+    import evaluate
+
+    config = evaluate.load_config()
+    config["paths"] = {**config["paths"]}
+    config["sampling_by_model"] = overrides or {}
+    return config
+
+
+def test_eval_generation_keeps_eval_context_and_marks_truncation(monkeypatch, tmp_path):
+    import subprocess
+
+    import evaluate
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="Début de réponse sans fin", stderr="")
+
+    monkeypatch.setattr(evaluate.subprocess, "run", fake_run)
+
+    out = evaluate.call_llama_cli("prompt", _eval_config(tmp_path))
+
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("-c") + 1] == "4096"
+    assert cmd[cmd.index("--min-p") + 1] == "0.05"
+    assert cmd[cmd.index("-s") + 1] == "42"
+    assert out == {
+        "response": "Début de réponse sans fin",
+        "truncated": True,
+        "truncated_reason": "max_tokens",
+    }
+    assert "limite de longueur" not in out["response"]
+
+
+def test_eval_generation_applies_per_model_sampling(monkeypatch, tmp_path):
+    import subprocess
+    from pathlib import Path
+
+    import evaluate
+
+    captured = {}
+
+    def fake_run(cmd, **kwargs):
+        captured["cmd"] = cmd
+        return subprocess.CompletedProcess(cmd, 0, stdout="Fin. [end of text]", stderr="")
+
+    monkeypatch.setattr(evaluate.subprocess, "run", fake_run)
+    config = _eval_config(tmp_path)
+    model_file = Path(config["paths"]["model"]).name
+    config["sampling_by_model"] = {model_file: {"top_k": 20, "top_p": 0.8, "min_p": 0.0}}
+
+    out = evaluate.call_llama_cli("prompt", config)
+
+    cmd = captured["cmd"]
+    assert cmd[cmd.index("--top-k") + 1] == "20"
+    assert cmd[cmd.index("--top-p") + 1] == "0.8"
+    assert cmd[cmd.index("--min-p") + 1] == "0.0"
+    assert out["truncated"] is False and out["response"] == "Fin."
+    meta = evaluate.run_metadata(config, use_rag=False, prompts_file=Path("eval/prompts_fr.jsonl"))
+    assert meta["sampling"]["top_k"] == 20
+    assert meta["n_ctx"] == 4096

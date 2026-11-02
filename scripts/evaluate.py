@@ -83,8 +83,39 @@ def build_prompt(user_message: str, config: dict, context: str = None) -> str:
     return template.format(system=system, user=user_message)
 
 
-def call_llama_cli(prompt: str, config: dict) -> str:
-    """Appelle llama-cli et retourne la réponse."""
+END_OF_TEXT_MARKER = "[end of text]"
+
+
+def truncation_status(raw_stdout: str, stderr: str) -> tuple[bool, str | None]:
+    """
+    Determine si la generation a ete coupee, a partir de la sortie de llama-completion.
+
+    llama-completion termine sa sortie par "[end of text]" quand le modele s'arrete
+    de lui-meme (token de fin). Sans ce marqueur, la generation a ete coupee : par
+    un contexte plein (message "context full" sur stderr) ou par la limite de tokens.
+    """
+    if raw_stdout.rstrip().endswith(END_OF_TEXT_MARKER):
+        return False, None
+    if "context full" in stderr:
+        return True, "context_full"
+    return True, "max_tokens"
+
+
+def call_llama_cli(prompt: str, config: dict) -> dict:
+    """
+    Genere une reponse avec llama-completion pour l'evaluation.
+
+    L'echantillonnage vient de la source partagee (app/inference.py, reglages par
+    modele compris) ; le contexte reste celui de l'evaluation (inference.n_ctx).
+    Le texte renvoye n'est jamais modifie : une coupure est signalee dans un champ
+    separe.
+
+    Returns:
+        {"response": str, "truncated": bool | None, "truncated_reason": str | None}
+    """
+    from app.chat import clean_llama_output
+    from app.inference import cli_sampling_args, sampling_params
+
     llama_cli = PROJECT_ROOT / config["paths"]["llama_cli"]
     model_path = PROJECT_ROOT / config["paths"]["model"]
 
@@ -104,17 +135,13 @@ def call_llama_cli(prompt: str, config: dict) -> str:
         str(llama_cli),
         "-m", str(model_path),
         "-p", prompt,
-        "-n", str(inf.get("n_predict", 1024)),
-        "-c", str(inf.get("n_ctx", 4096)),
+        "-c", str(inf.get("n_ctx", 4096)),  # contexte de l'evaluation, pas n_ctx_chat
         "-t", str(inf.get("threads", 8)),
         "-ngl", str(inf.get("n_gpu_layers", 99)),
-        "--temp", str(inf.get("temp", 0.7)),
-        "--top-p", str(inf.get("top_p", 0.9)),
-        "--top-k", str(inf.get("top_k", 40)),
-        "--repeat-penalty", str(inf.get("repeat_penalty", 1.1)),
+        *cli_sampling_args(sampling_params(config)),
         "-s", str(inf.get("seed", 42)),  # Seed pour reproductibilité
         "--no-display-prompt",
-        "-no-cnv",  # Disable conversation mode for batch eval
+        "-no-cnv",  # Generation brute : le template est applique par build_prompt
     ]
 
     try:
@@ -124,13 +151,20 @@ def call_llama_cli(prompt: str, config: dict) -> str:
             text=True,
             timeout=120,  # 2 minutes max
         )
-        from app.chat import clean_llama_output
-
-        return clean_llama_output(result.stdout)
     except subprocess.TimeoutExpired:
-        return "[TIMEOUT]"
+        return {"response": "[TIMEOUT]", "truncated": True, "truncated_reason": "timeout"}
     except Exception as e:
-        return f"[ERROR: {e}]"
+        return {"response": f"[ERROR: {e}]", "truncated": None, "truncated_reason": None}
+
+    if "prompt is too long" in result.stderr:
+        return {"response": "", "truncated": True, "truncated_reason": "prompt_too_long"}
+
+    truncated, reason = truncation_status(result.stdout, result.stderr)
+    return {
+        "response": clean_llama_output(result.stdout),
+        "truncated": truncated,
+        "truncated_reason": reason,
+    }
 
 
 # Version du scoring : a incrementer a chaque changement de notation, pour ne
@@ -266,8 +300,9 @@ def run_evaluation(prompts: list[dict], config: dict, use_rag: bool = False) -> 
         # Construire le prompt
         full_prompt = build_prompt(prompt_data["prompt"], config, context=context)
 
-        # Appeler llama-cli
-        response = call_llama_cli(full_prompt, config)
+        # Generer (llama-completion)
+        generation = call_llama_cli(full_prompt, config)
+        response = generation["response"]
 
         # Évaluer
         eval_result = evaluate_response(response, prompt_data)
@@ -278,6 +313,8 @@ def run_evaluation(prompts: list[dict], config: dict, use_rag: bool = False) -> 
             "difficulty": prompt_data["difficulty"],
             "prompt": prompt_data["prompt"],
             "response": response,
+            "truncated": generation["truncated"],
+            "truncated_reason": generation["truncated_reason"],
             "evaluation": eval_result,
         }
 
@@ -403,6 +440,16 @@ def llama_cpp_version(config: dict) -> str | None:
     return parse_llama_cpp_version(out.stdout + out.stderr)
 
 
+def _effective_sampling(config: dict) -> dict | None:
+    """Echantillonnage reellement applique (reglages par modele compris)."""
+    try:
+        from app.inference import sampling_params
+
+        return sampling_params(config)
+    except (KeyError, ValueError):
+        return None
+
+
 def run_metadata(config: dict, use_rag: bool, prompts_file: Path) -> dict:
     """Metadonnees de reproductibilite : modele reellement utilise, seed, code, RAG."""
     model_path = PROJECT_ROOT / config["paths"]["model"]
@@ -410,6 +457,8 @@ def run_metadata(config: dict, use_rag: bool, prompts_file: Path) -> dict:
         "scorer_version": SCORER_VERSION,
         "llama_cpp_rev": llama_cpp_version(config),
         "llama_cli": config["paths"].get("llama_cli"),
+        "n_ctx": config["inference"].get("n_ctx"),
+        "sampling": _effective_sampling(config),
         "model_path": str(config["paths"]["model"]),
         "model_size_bytes": model_path.stat().st_size if model_path.exists() else None,
         "seed": config["inference"].get("seed"),
