@@ -1,369 +1,143 @@
 # RustSensei
 
-Un assistant local pour apprendre le Rust en francais.
+Assistant local pour apprendre le Rust en français : il explique les concepts et
+les erreurs du compilateur en s'appuyant sur la documentation officielle, sans
+connexion internet, sur un Mac Apple Silicon.
 
-## Quick Start (< 2 min)
+## Démo vidéo
 
-```bash
-# 1. Cloner
-git clone https://github.com/2501Pr0ject/RustSensei.git
-cd RustSensei
+<!-- VIDÉO : insérer ici le lien ou le lecteur de la démo -->
+> Vidéo à venir.
 
-# 2. Installer (Python + llama.cpp + modele)
-make install-all
+## Problème
 
-# 3. Lancer
-make chat
+La documentation Rust est en anglais et les erreurs du compilateur (ownership,
+emprunts, lifetimes) déroutent les débutants. Les assistants en ligne répondent
+bien, mais envoient le code ailleurs et ne citent pas leurs sources. RustSensei
+vise un tuteur **100 % local, en français, qui cite la documentation officielle**,
+avec une contrainte matérielle forte : MacBook M2 16 Go, budget nul.
+
+## Architecture
+
+```
+UI React (Vite) ──► API FastAPI ──► cache des réponses (par modèle, exact + sémantique)
+                        │
+                        ├──► RAG : 8 sources officielles, 2 378 extraits
+                        │     dense (FAISS, MiniLM multilingue) + BM25 → fusion RRF
+                        │     + graphe de connaissances FR/EN → reranker multilingue
+                        │
+                        └──► llama-server persistant (llama.cpp b12032, Metal)
+                              Qwen2.5-Coder-1.5B-Instruct, Q4_K_M
+CLI et évaluation ─────────► llama-completion (même modèle, mêmes réglages)
 ```
 
-**Prérequis** : Python 3.11+, [uv](https://github.com/astral-sh/uv), macOS Apple Silicon recommandé
+- **UI** : réponses en streaming, sources cliquables, saisie multi-ligne pour
+  coller du code, bouton Stop, copie des blocs de code, conversation sur 3 échanges.
+- **Sources RAG** : Rust Book, Reference, Rust by Example, Cookbook, Async Book,
+  Rustonomicon, Edition Guide, Rustlings.
+- **Configuration unique** (`configs/model_config.yaml`) : l'UI, le CLI et
+  l'évaluation lisent le même échantillonnage, avec des réglages par modèle
+  (`sampling_by_model`). Changer de modèle tient en une ligne (`paths.model`).
 
-## Fonctionnalités
+## Démarrage rapide
 
-- **100% local** - Fonctionne sans connexion internet (après installation)
-- **Modèle** - Qwen3-4B-Instruct-2507 (Q4_K_M, 2.5 Go, licence Apache 2.0) ; le 1.5B reste la référence d'évaluation
-- **Inférence rapide** - llama.cpp optimisé Metal/MPS
-- **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
-- **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF, graphe de connaissances et rerank multilingue
-- **Sources cliquables** - Citations RAG affichées en liens dans l'interface
-- **Cache (CAG)** - Réponses mémorisées sur disque, exactes ou sémantiquement proches
-- **Conversation multi-tours** - Historique (3 derniers échanges) envoyé au modèle contextuel
-- **Compilation : 50%** des blocs de code - Évaluation auto sur 91 prompts, 3 graines
-- **Français** - Réponses pédagogiques en français (100%)
+Prérequis : macOS Apple Silicon (16 Go recommandés), Python 3.11+,
+[uv](https://github.com/astral-sh/uv), Node.js, Xcode Command Line Tools ;
+`rustc` pour la vérification de compilation.
 
-## Métriques
+```bash
+make install-all     # dépendances Python, compilation de llama.cpp, modèle (1 Go)
+make build-index     # téléchargement de la documentation et index RAG
+make chat-rag        # chat en terminal avec la documentation
+make api             # API sur http://localhost:8000 (charge le modèle au démarrage)
+make web             # interface sur http://localhost:5173 (installe le front au besoin)
+make install-dev && make test   # tests (146)
+```
 
-Référence actuelle : Qwen2.5-Coder-1.5B-Instruct (GGUF officiel Qwen, Q4_K_M),
-llama.cpp b12032, RAG activé (retrieval hybride dense + BM25, graphe de
-connaissances, reranker multilingue).
+## Méthode d'évaluation
 
-| Métrique | Valeur |
-|----------|--------|
-| Score global | 3.00/5 (graines 42, 1, 2 : 3.02 / 3.04 / 2.94) |
-| Langue FR | 99% |
-| Compilation (blocs) | 50% (162/322) |
-| Format en 5 sections | 13% des réponses |
-| Dataset | 221 exemples |
-
-*Évaluation : 91 prompts (`eval/prompts_fr.jsonl`), 3 graines, notation v2 :
-mots-clés avec alternatives, casse et accents normalisés, frontière de mot à
-gauche (`SCORER_VERSION` dans `scripts/evaluate.py`, enregistré dans chaque
-rapport avec la version de llama.cpp et l'échantillonnage effectif). 27 prompts
-recoupent les données d'entraînement LoRA (`"in_lora_train": true`) ; les 64
-autres forment le sous-ensemble « hors entraînement » (`--held-out`).*
-
-**Anciens chiffres recalculés.** Les évaluations de janvier et du 1er novembre
-(50 prompts) ont été renotées avec la notation v2 à partir des réponses
-stockées (`scripts/rescore_reports.py`, marqueur `[end of text]` retiré des
-réponses de janvier), sans régénération ; les copies renotées sont dans
-`reports/rescored/`. Sur les prompts 1-50 : janvier 3.10/5, novembre 3.19/5
-(3 graines), écart +0.09, IC95 [-0.14, +0.33], non significatif. Le nouveau
-retrieval cite en revanche moins souvent des sources hors sujet (Rustonomicon,
-Async Book ou Edition Guide pour une question qui n'y touche pas : 26 citations
-au lieu de 42).
-
-**Version de llama.cpp.** Le passage de b4823 à b12032 (nécessaire pour
-Qwen3) modifie 17 réponses sur 91 de la référence à graine égale et abaisse son
-score de 3.05 à 3.00 (-0.05, IC95 [-0.10, -0.01]). Les comparaisons entre
-modèles évalués sous des versions différentes portent cet écart.
-
-### Modèles évalués
-
-| Modèle | llama.cpp | Score | Écart (IC95) | FR | 5 sections | Compilation | Licence |
-|--------|-----------|-------|--------------|----|------------|-------------|---------|
-| Qwen2.5-Coder-1.5B (référence) | b12032 | 3.00 | — | 99% | 13% | 50% | Apache 2.0 |
-| Qwen3-4B-Instruct-2507 (GGUF bartowski) | b12032 | 3.99 | +0.99 [+0.83, +1.16] | 100% | 100% | 48% | Apache 2.0 |
-| Qwen2.5-Coder-3B (GGUF officiel) | b4823 | 3.57 | +0.52 [+0.39, +0.67] (vs réf. b4823) | 100% | 92% | 53% | `qwen-research` |
-| LoRA correctif de janvier (graine 42) | b4823 | 2.63 | -0.45 [-0.72, -0.16] (vs réf. b4823, graine 42) | 80% | 5% | 34% | — |
-
-*3 graines par modèle, sauf le LoRA (graine 42).*
-
-- **Qwen3-4B-Instruct-2507** : écart significatif sur tous les sous-ensembles —
-  hors entraînement +1.07 [+0.86, +1.27], prompts 1-50 +0.77, prompts 51-91
-  +1.26 — et +0.42 [+0.30, +0.53] face au 3B (+0.46 hors entraînement), malgré
-  la différence de version de llama.cpp. Gains les plus forts : testing,
-  lifetimes, smart pointers, closures, concurrency. GGUF communautaire
-  (bartowski, Q4_K_M, 2.5 Go) : Qwen ne publie pas de GGUF officiel pour ce
-  modèle ; son gabarit de chat produit exactement le même prompt que le gabarit
-  officiel. Coût : environ 53 s par réponse en évaluation contre 14 s pour le
-  1.5B (réponses plus longues : médiane 766 tokens contre 303) ; 25 réponses
-  sur 273 (9 %) atteignent la limite de 1024 tokens et sont coupées, ce qui le
-  pénalise plutôt. Évalué avec les réglages d'échantillonnage communs, pas ceux
-  recommandés par Qwen (top-k 20, top-p 0.8, min-p 0).
-- **3B** : non retenu, licence `qwen-research` (non commerciale).
-- **4B retenu comme modèle par défaut**, avec les réglages recommandés par Qwen
-  (top-k 20, top-p 0.8, min-p 0) et une limite relevée à 1536 tokens
-  (`sampling_by_model` dans `configs/model_config.yaml`) : les réponses coupées à
-  1024 tokens étaient longues mais utiles (aucune en boucle, contre 9 sur 13
-  pour le 1.5B), coupées dans la dernière section.
-- **LoRA correctif** : résultat rapporté pour information uniquement. Il a été
-  entraîné avec un autre prompt système, sans contexte RAG, et quantifié par un
-  pipeline local différent du GGUF officiel : il n'est pas représentatif d'un
-  LoRA v2, piste abandonnée.
-
-### Latence dans l'UI
-
-L'API lance un `llama-server` persistant à son démarrage (`server.persistent`) ;
-il n'est relancé que si le modèle ou le contexte changent dans la config. Mesures
-dans l'UI (4 questions avec RAG, cache désactivé, conversation vide, médianes) :
-
-| Modèle | Serveur | Premier mot | Réponse complète | Tokens générés | Tokens/s |
-|--------|---------|-------------|------------------|----------------|----------|
-| 1.5B | persistant | 3.2 s | 7.9 s | 244 | 52 |
-| 1.5B | par requête | 4.9 s | 12.6 s | 258 | 35 |
-| 4B | persistant | 11.2 s | 52.3 s | 666 | 17 |
-| 4B | par requête | 19.3 s | 73.7 s | 689 | 13 |
-
-Le serveur persistant fait gagner environ 8 s avant le premier mot avec le 4B
-(chargement du modèle évité). Le délai restant vient surtout du traitement du
-prompt (environ 1700 tokens avec la documentation RAG ; la recherche RAG prend
-0.5 s). Ces mesures ont été faites avec les réglages communs (1024 tokens max).
-
-Reproduire :
+- **91 questions** en français, 19 catégories, du débutant à l'avancé
+  (`eval/prompts_fr.jsonl`). 27 recoupent les données d'entraînement LoRA ;
+  les 64 autres forment le sous-ensemble **hors entraînement**.
+- **3 graines** (42, 1, 2), RAG activé, mêmes réglages pour tous les modèles
+  (température 0,7, top-k 40, top-p 0,9, min-p 0,05, 1024 tokens au plus).
+- **Score automatique sur 5** : réponse en français (20 %), présence de code (15 %),
+  mots-clés attendus (35 %, avec alternatives, casse et accents normalisés),
+  longueur de 100 à 800 mots (15 %), compilation des blocs par `rustc` (15 %).
+- **Comparaisons appariées** par question, avec intervalle de confiance à 95 %
+  par bootstrap. Chaque rapport enregistre le modèle, la version de llama.cpp,
+  l'échantillonnage et la version de la notation ; un changement de notation
+  se renote à partir des réponses stockées, sans régénérer.
 
 ```bash
 uv run python scripts/evaluate.py --rag --seeds 42,1,2 [--model models/<fichier>.gguf]
-uv run python scripts/rescore_reports.py reports/eval_rag_*.json   # après un changement de notation
-uv run python scripts/compare_evals.py --ref <rapports référence> --new <rapports candidat> [--held-out] [--ids 1-50]
+uv run python scripts/compare_evals.py --ref <rapports> --new <rapports> [--held-out] [--ids 1-50]
+uv run python scripts/rescore_reports.py reports/eval_rag_*.json
 ```
 
-## Cache et retrieval hybride
+## Résultats
 
-Le cache de réponses (CAG) mémorise les réponses par question normalisée et les
-persiste dans `data/cache.json` : une question déjà posée est servie
-instantanément, même après un redémarrage. Le TTL (7 jours par défaut) se règle
-dans `configs/rag_config.yaml` (section `cache`).
+| Modèle | Score /5 | Écart au 1.5B (IC95) | Format 5 sections | Premier mot | Réponse complète | Licence |
+|--------|----------|----------------------|-------------------|-------------|------------------|---------|
+| **Qwen2.5-Coder-1.5B** (démo) | **3,00** | — | 13 % | 3,2 s | 7,9 s | Apache 2.0 |
+| Qwen3-4B-Instruct-2507 | 3,99 | +0,99 [+0,83 ; +1,16] | 100 % | 11,2 s | 52,3 s | Apache 2.0 |
+| Qwen2.5-Coder-3B | 3,57 | +0,52 [+0,39 ; +0,67] ¹ | 92 % | — | — | qwen-research |
+| LoRA correctif du 1.5B | 2,63 | −0,45 [−0,72 ; −0,16] ¹ ² | 5 % | — | — | — |
 
-La recherche est d'abord exacte, puis sémantique : si une question proche a déjà
-été posée, son embedding (modèle RAG) est comparé par similarité cosinus et la
-réponse est réutilisée au-delà du seuil `cache.semantic.threshold` (0.85 par
-défaut). Les reformulations du type « Comment créer un thread ? » / « Comment on
-crée un thread ? » touchent ainsi le cache sans génération.
+¹ Mesuré face au 1.5B sous llama.cpp b4823 (version antérieure) ; ² graine 42 seule.
+Latences mesurées dans l'UI (4 questions avec RAG, médianes, serveur persistant).
 
-Les réponses RAG affichent leurs sources dans l'interface : le backend transmet
-les citations via le header `X-Citations` (base64/UTF-8) et l'UI les rend sous
-forme de liens vers la documentation officielle. Les réponses issues du cache
-sont signalées par un badge (header `X-Cache` dans `/chat/stream`), ainsi que par
-`GET /cache/stats`.
+- Sur les 64 questions hors entraînement, le 4B fait +1,07 [+0,86 ; +1,27].
+- Le retrieval hybride n'améliore pas le score de façon mesurable face au
+  retrieval dense de janvier (+0,09, IC95 [−0,14 ; +0,33]) mais cite moins de
+  sources hors sujet (26 au lieu de 42).
+- Le serveur persistant fait gagner 1,7 s (1.5B) à 8 s (4B) avant le premier
+  mot, par rapport à un serveur lancé à chaque requête.
 
-Le retrieval (KAG) combine deux canaux : recherche dense FAISS et recherche
-lexicale BM25, fusionnées par Reciprocal Rank Fusion, puis réordonnées par un
-cross-encoder multilingue. Les termes exacts (noms d'API, types) sont ainsi
-mieux couverts que par la recherche dense seule.
+Rapports complets dans `reports/` ; copies renotées dans `reports/rescored/`.
 
-Le graphe de connaissances relie les concepts Rust (ownership, Send/Sync, Rc,
-lifetimes, Result...) avec leurs alias FR/EN (`configs/knowledge_graph.yaml`).
-Une question qui croise plusieurs domaines fait remonter les pages des concepts
-voisins via un canal lexical supplémentaire : « Pourquoi RefCell ne peut pas
-être partagé entre threads ? » récupère aussi les pages Send/Sync.
+## Décisions
 
-Statistiques du cache :
+- **LoRA abandonné.** Entraînements instables sur M2 (plantages Metal), régressions
+  sur d'autres catégories, et le seul LoRA disponible fait −0,45 : changer de
+  modèle de base rapporte bien plus.
+- **3B écarté** : licence `qwen-research`, non commerciale.
+- **4B meilleur, mais pas pour la démo.** +1,0 point, format suivi à 100 %, mais
+  environ 5 fois plus lent sur M2 : 3,5 × au premier mot (11,2 s contre 3,2 s),
+  6,6 × sur la réponse complète (52 s contre 8 s, réponses aussi plus longues).
+  **La démo reste sur le 1.5B pour la réactivité.** Le 4B se sélectionne en une
+  ligne (`paths.model`) ; ses réglages (recommandés par Qwen, 1536 tokens) sont
+  déjà dans `sampling_by_model`. Son GGUF vient de bartowski : Qwen n'en publie pas.
+- **llama.cpp b12032** (requis pour Qwen3) : effet mesuré sur le 1.5B de −0,05
+  (IC95 [−0,10 ; −0,01]), 17 réponses sur 91 modifiées à graine égale.
 
-```bash
-curl http://localhost:8000/cache/stats
-# {"entries": 4, "hits": 3, "misses": 1, "hit_rate": 0.75,
-#  "semantic_enabled": true, "semantic_threshold": 0.85, ...}
-```
+## Limites connues
 
-### Conversation multi-tours
-
-L'historique des échanges est transmis au backend (`/chat`, `/chat/stream` avec
-le champ `history` de type `{role, content}`, rôles `user`/`assistant` uniquement,
-plafonné à 6 messages ; chaque message est tronqué à 666 caractères pour rester
-dans un budget de 4 000 caractères). Le prompt est construit avec le format
-`Conversation précédente :` juste avant la question courante, puis le contexte RAG.
-
-La clé de cache est composite (historique normalisé + question) : une réponse est
-servie depuis le cache uniquement si l'historique et la question correspondent
-exactement. Le matching sémantique (similarité) est désactivé en multi-tours.
-
-L'historique est persisté dans le navigateur (`localStorage`, clé
-`rustsensei_history`, 6 derniers messages) et restauré au chargement de la page.
-Le bouton « Effacer » repart d'une conversation vide.
-
-```bash
-curl -s -X POST http://localhost:8000/chat/stream \
-  -H 'Content-Type: application/json' \
-  -d '{"message":"Puis je le partager entre deux threads ?", "use_rag": true, "history": [{"role":"user","content":"Qu est ce qu un Rc ?"}]}'
-```
-
-## Utilisation
-
-```bash
-# Chat interactif
-make chat
-
-# Chat avec RAG (documentation Rust)
-make chat-rag
-
-# Évaluation
-make eval
-
-# Vérification compilation
-make compile-check
-
-# Interface web (deux terminaux)
-make api   # API FastAPI sur http://localhost:8000
-make web   # UI sur http://localhost:5173
-```
-
-Dans l'interface web, Entrée envoie la question et Maj+Entrée insère un saut de
-ligne : on peut coller un extrait de code Rust sur plusieurs lignes. Sur écran
-tactile, Entrée insère un saut de ligne et l'envoi se fait avec le bouton.
-
-L'UI, `/chat`, le CLI et l'évaluation utilisent les mêmes réglages
-d'échantillonnage, lus dans `configs/model_config.yaml` (section `inference` ;
-réglages propres à un modèle dans `sampling_by_model`). Les chemins
-conversationnels disposent d'un contexte de 8192 tokens (`n_ctx_chat`) pour
-l'historique ; si la question, l'historique et la documentation le dépassent,
-l'API répond `413` avec un message explicite au lieu de tronquer la réponse, et
-une réponse coupée par la limite de longueur est signalée comme telle.
-
-L'interface affiche aussi :
-- l'état de l'API dans l'en-tête, avec une nouvelle tentative automatique quand
-  elle est hors ligne (`GET /health`, qui indique aussi si l'index RAG est
-  disponible : `{"status": "ok", "rag_available": true, "rag_error": null}`) ;
-- un bouton **Stop** pendant la génération : la réponse partielle est conservée
-  et la génération est arrêtée côté serveur ;
-- un bouton **Copier** et le langage sur chaque bloc de code ;
-- des exemples de questions cliquables quand la conversation est vide.
-
-### Exemple
-
-```
-> Pourquoi ce code ne compile pas ?
-> let s = String::from("hello");
-> let s2 = s;
-> println!("{}", s);
-
-## TL;DR
-La variable s a ete deplacee vers s2, elle n'est plus utilisable.
-
-## Solution
-let s2 = s.clone();  // ou let s2 = &s;
-...
-```
-
-## Structure
-
-```
-RustSensei/
-├── app/           # CLI, API et RAG (chat.py, rag.py, cache.py, knowledge.py)
-├── scripts/       # Evaluation, training, export
-├── configs/       # Configuration modele, RAG, training
-├── data/          # Dataset d'entrainement
-├── eval/          # Prompts d'evaluation
-├── models/        # Modeles GGUF et adaptateurs LoRA
-├── rag/           # Index de documentation
-├── reports/       # Resultats et metriques
-└── vendor/        # llama.cpp
-```
-
-## Documentation
-
-- [MODEL_CARD.md](MODEL_CARD.md) - Specifications du modele
-- [EVALUATION.md](EVALUATION.md) - Systeme d'evaluation
-
-## Roadmap
-
-### v1.0 (terminé)
-
-- [x] **M0-M7** : CLI + RAG + Fine-tune + Packaging
-
-### v2.0 (planifié)
-
-- [ ] **M8** : Web UI (React + TypeScript + Tailwind)
-- [x] **M9** : Dataset étendu (221 exemples, LoRA en pause)
-- [x] **M10** : RAG étendu (Cookbook, Async, Nomicon, Rustlings, Edition Guide)
-- [ ] **M11** : Docker
-- [ ] **M12** : Qualité (reranker, éval humaine)
-
-Details : voir [Roadmap v2.0](#roadmap-v20)
-
-## Installation détaillée
-
-```bash
-# Étape par étape
-make setup           # Dépendances Python
-make install-llama   # Compiler llama.cpp
-make download-model  # Télécharger le modèle GGUF
-make build-index     # Construire l'index RAG
-
-# Vérifier
-make check
-```
+- **Qualité du 1.5B** : 3,00/5 ; catégories faibles : borrowing 2,26,
+  smart pointers 2,28, lifetimes 2,51, closures 2,56.
+- **Format** : la structure en 5 sections (TL;DR, Problème, Solution, Explication,
+  À retenir) n'est suivie que dans 13 % des réponses.
+- **Code** : 50 % des blocs compilent ; 47 % des réponses contenant du code
+  compilent entièrement.
+- **Réponses coupées** : 13 sur 273 atteignent 1024 tokens, dont 9 bouclent
+  sur elles-mêmes. Les coupures sont signalées dans l'UI.
+- **Index RAG** : 59 % des extraits du Rust Book (351 sur 592) contiennent une
+  directive mdBook non résolue (`{{#rustdoc_include …}}`) à la place du code des
+  exemples, soit 18 % de l'index.
+- **Latence** : le délai avant le premier mot vient surtout du traitement du
+  prompt (environ 1 700 tokens avec la documentation ; la recherche prend 0,5 s).
+- **Évaluation** : notation automatique (mots-clés, compilation), sans relecture
+  humaine ni juge ; elle ne mesure pas l'exactitude technique, et des erreurs de
+  fond subsistent, y compris chez le 4B.
+- **Cache** : une réponse est resservie 7 jours au même modèle, même si
+  l'échantillonnage ou le prompt système ont changé entre-temps.
+- **Conversation** : contexte de 8192 tokens (au-delà, erreur 413 explicite) ;
+  historique limité à 6 messages, chacun tronqué à 666 caractères.
+- **Plateforme** : testé uniquement sur Mac Apple Silicon (M2 16 Go) ; pas d'image Docker.
 
 ## Licence
 
-MIT License
+Code sous licence MIT. Modèle Qwen2.5-Coder-1.5B-Instruct sous licence Apache 2.0
+(Alibaba Cloud), comme Qwen3-4B-Instruct-2507.
 
-## Auteur
-
-**Abdel TOUATI**
-
----
-
-## Roadmap v2.0
-
-### M8 — Web UI
-
-| Composant | Techno |
-|-----------|--------|
-| Frontend | React + TypeScript + Tailwind |
-| Backend | FastAPI |
-| Build | Vite |
-
-Fonctionnalités :
-- Chat interface avec historique
-- Toggle RAG on/off
-- Citations avec liens vers docs
-- Syntax highlighting Rust
-- Saisie multi-ligne pour coller du code
-- Bouton Stop, copie des blocs de code, état de l'API
-
-### M9 — Dataset étendu (terminé)
-
-**Résultats :**
-| Métrique | Avant | Après |
-|----------|-------|-------|
-| Exemples | 49 | 221 (+351%) |
-| Lifetimes | 3 | 34 |
-| Borrowing | 3 | 26 |
-| Async | 1 | 21 |
-
-**Ce qui a fonctionné :**
-- Extension du dataset avec focus sur les catégories faibles
-- Prompt simplifié pour 100% français
-- Validation compilation automatique des exemples
-
-**Ce qui n'a pas fonctionné :**
-- Fine-tuning LoRA sur MacBook M2 16GB : crashes répétitifs (Metal GPU timeout)
-- Les adaptateurs LoRA amélioraient certains topics (+67% lifetimes) mais en dégradaient d'autres (catastrophic forgetting)
-
-**Décision :** Utiliser le modèle baseline (Qwen2.5-Coder-1.5B) sans LoRA pour garantir la stabilité. Le dataset étendu reste disponible pour un futur fine-tuning sur hardware plus robuste.
-
-### M10 — RAG étendu (terminé)
-
-Sources ajoutées :
-| Source | Chunks | Description |
-|--------|--------|-------------|
-| Rust Cookbook | 200 | Recettes pratiques |
-| Async Book | 156 | Async/await |
-| Rustlings | 70 | Exercices |
-| Rustonomicon | 180 | Unsafe Rust |
-| Edition Guide | 175 | Editions Rust |
-| **Total** | **2,378** | +49% vs v1.0 |
-
-### M11 — Docker
-
-- Image Docker tout-en-un
-- docker-compose (API + UI)
-- Installation one-click
-- Support GPU optionnel
-
-### M12 — Qualité
-
-- Reranker multilingue (mmarco)
-- Évaluation humaine
-- Support multi-fichiers (projets Cargo)
-- Modèle 7B (optionnel)
+Auteur : **Abdel TOUATI**
