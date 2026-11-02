@@ -196,3 +196,5 @@ def test_system_prompt_has_conditional_format_and_no_placeholders():
     for title in ("## TL;DR", "## Problème", "## Solution", "## Explication", "## À retenir"):
         assert title in system
     assert "salutation" in system and "sans titres ni sections" in system
+    assert "Tu tutoies" in system
+    assert "jamais d'emoji" in system

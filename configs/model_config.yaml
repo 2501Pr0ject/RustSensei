@@ -5,14 +5,15 @@
 paths:
   # llama-completion : generation brute (-no-cnv) ; llama-cli est un client de chat depuis 2025
   llama_cli: "vendor/llama.cpp/build/bin/llama-completion"
-  # Démo : 1.5B (réactivité). Pour passer au 4B : "models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
-  model: "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+  # Modèle par défaut : Qwen3-4B-Instruct-2507. Mode rapide (environ 5 fois plus
+  # réactif, moins juste) : "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+  model: "models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 
 # Modèle
 model:
-  name: "RustSensei (Qwen2.5-Coder-1.5B-Instruct)"
-  base: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"  # GGUF officiel Qwen, cf. paths.model
+  name: "RustSensei (Qwen3-4B-Instruct-2507)"
+  base: "Qwen/Qwen3-4B-Instruct-2507"
+  file: "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"  # GGUF bartowski, cf. paths.model
   quantization: "Q4_K_M"
 
 # Paramètres llama-cli
@@ -40,10 +41,10 @@ server:
 # surchargent `inference` pour ce modèle ; clés possibles : temp, top_k, top_p,
 # min_p, repeat_penalty, n_predict. Vide = valeurs ci-dessus pour tous.
 sampling_by_model:
-  # Qwen3-4B-Instruct-2507 (meilleur en qualité, non retenu pour la démo car trop
-  # lent sur M2) : réglages recommandés par Qwen (top-k, top-p, min-p) ; limite
-  # relevée à 1536 tokens, 9 % des réponses étant coupées à 1024 (longues mais
-  # utiles, sans boucle). S'applique dès que paths.model pointe vers ce fichier.
+  # Qwen3-4B-Instruct-2507 (modèle par défaut) : réglages recommandés par Qwen
+  # (top-k, top-p, min-p) ; limite relevée à 1536 tokens, 9 % des réponses étant
+  # coupées à 1024 (longues mais utiles, sans boucle). Le 1.5B (mode rapide)
+  # utilise les valeurs communes de la section inference.
   Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf:
     top_k: 20
     top_p: 0.8
@@ -53,7 +54,7 @@ sampling_by_model:
 # Prompt système
 prompt:
   system: |
-    Tu es RustSensei, un professeur de Rust bienveillant. Tu réponds toujours en français, de façon claire et pédagogique.
+    Tu es RustSensei, un professeur de Rust bienveillant. Tu réponds toujours en français, de façon claire et pédagogique. Tu tutoies la personne qui te pose la question. Tu n'utilises jamais d'emoji.
 
     Adapte la forme de ta réponse à la demande.
 
