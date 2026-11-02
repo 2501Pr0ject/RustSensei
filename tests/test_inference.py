@@ -57,13 +57,21 @@ def test_repository_config_matches_current_eval_values():
     with open("configs/model_config.yaml", encoding="utf-8") as f:
         config = yaml.safe_load(f)
 
-    assert sampling_params(config) == {
+    common = {
         "temp": 0.7,
         "top_k": 40,
         "top_p": 0.9,
         "min_p": 0.05,
         "repeat_penalty": 1.1,
         "n_predict": 1024,
+    }
+    assert sampling_params(config, "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf") == common
+    assert sampling_params(config, "models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf") == {
+        **common,
+        "top_k": 20,
+        "top_p": 0.8,
+        "min_p": 0.0,
+        "n_predict": 1536,
     }
     assert chat_ctx_size(config) == 8192
     assert config["inference"]["n_ctx"] == 4096

@@ -144,11 +144,16 @@ def test_call_llama_cli_uses_shared_sampling_and_chat_context(monkeypatch):
 
     monkeypatch.setattr("app.chat.subprocess.run", fake_run)
 
-    assert call_llama_cli("prompt", load_config()) == "Réponse."
+    from app.inference import sampling_params
+
+    config = load_config()
+    assert call_llama_cli("prompt", config) == "Réponse."
     cmd = captured["cmd"]
+    params = sampling_params(config)
     assert cmd[cmd.index("-c") + 1] == "8192"
-    assert cmd[cmd.index("--min-p") + 1] == "0.05"
-    assert cmd[cmd.index("--temp") + 1] == "0.7"
+    assert cmd[cmd.index("--min-p") + 1] == str(params["min_p"])
+    assert cmd[cmd.index("--top-k") + 1] == str(params["top_k"])
+    assert cmd[cmd.index("-n") + 1] == str(params["n_predict"])
 
 
 def test_call_llama_cli_raises_clear_error_on_context_overflow(monkeypatch):

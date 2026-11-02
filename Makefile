@@ -20,8 +20,11 @@ LLAMA_DIR := vendor/llama.cpp
 LLAMA_CLI := $(LLAMA_DIR)/build/bin/llama-completion
 
 # Modèle GGUF
-MODEL_REPO := Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF
-MODEL_FILE := qwen2.5-coder-1.5b-instruct-q4_k_m.gguf
+# Modèle par défaut : Qwen3-4B-Instruct-2507 (Apache 2.0). Qwen ne publie pas de
+# GGUF officiel pour ce modèle : quantification Q4_K_M de bartowski.
+# Référence d'évaluation : Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF (qwen2.5-coder-1.5b-instruct-q4_k_m.gguf).
+MODEL_REPO := bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF
+MODEL_FILE := Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
 MODEL_DIR := models
 MODEL_PATH := $(MODEL_DIR)/$(MODEL_FILE)
 

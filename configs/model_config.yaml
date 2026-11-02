@@ -5,13 +5,13 @@
 paths:
   # llama-completion : generation brute (-no-cnv) ; llama-cli est un client de chat depuis 2025
   llama_cli: "vendor/llama.cpp/build/bin/llama-completion"
-  model: "models/qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"
+  model: "models/Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"
 
 # Modèle
 model:
-  name: "RustSensei-1.5B (Qwen2.5-Coder baseline, sans LoRA)"
-  base: "Qwen/Qwen2.5-Coder-1.5B-Instruct"
-  file: "qwen2.5-coder-1.5b-instruct-q4_k_m.gguf"  # cf. paths.model (LoRA en pause, M9)
+  name: "RustSensei (Qwen3-4B-Instruct-2507)"
+  base: "Qwen/Qwen3-4B-Instruct-2507"
+  file: "Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf"  # GGUF bartowski, cf. paths.model
   quantization: "Q4_K_M"
 
 # Paramètres llama-cli
@@ -38,12 +38,15 @@ server:
 # Réglages d'échantillonnage par modèle (clé = nom du fichier GGUF). Ils
 # surchargent `inference` pour ce modèle ; clés possibles : temp, top_k, top_p,
 # min_p, repeat_penalty, n_predict. Vide = valeurs ci-dessus pour tous.
-# Exemple (réglages recommandés par Qwen, à n'activer que si le 4B est retenu) :
-#   Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf:
-#     top_k: 20
-#     top_p: 0.8
-#     min_p: 0.0
-sampling_by_model: {}
+sampling_by_model:
+  # Qwen3-4B-Instruct-2507 (retenu) : réglages recommandés par Qwen (top-k, top-p,
+  # min-p) ; limite relevée à 1536 tokens, 9 % des réponses étant coupées à 1024
+  # (longues mais utiles, sans boucle).
+  Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf:
+    top_k: 20
+    top_p: 0.8
+    min_p: 0.0
+    n_predict: 1536
 
 # Prompt système
 prompt:
