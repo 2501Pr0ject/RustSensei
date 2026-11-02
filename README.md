@@ -21,6 +21,7 @@ make chat
 ## Fonctionnalités
 
 - **100% local** - Fonctionne sans connexion internet (après installation)
+- **Modèle** - Qwen3-4B-Instruct-2507 (Q4_K_M, 2.5 Go, licence Apache 2.0) ; le 1.5B reste la référence d'évaluation
 - **Inférence rapide** - llama.cpp optimisé Metal/MPS
 - **RAG** - 8 sources officielles (Book, Reference, Cookbook, Async, Nomicon...)
 - **Retrieval hybride** - Dense (FAISS) + lexical (BM25), fusion RRF, graphe de connaissances et rerank multilingue
@@ -90,10 +91,33 @@ modèles évalués sous des versions différentes portent cet écart.
   pénalise plutôt. Évalué avec les réglages d'échantillonnage communs, pas ceux
   recommandés par Qwen (top-k 20, top-p 0.8, min-p 0).
 - **3B** : non retenu, licence `qwen-research` (non commerciale).
+- **4B retenu comme modèle par défaut**, avec les réglages recommandés par Qwen
+  (top-k 20, top-p 0.8, min-p 0) et une limite relevée à 1536 tokens
+  (`sampling_by_model` dans `configs/model_config.yaml`) : les réponses coupées à
+  1024 tokens étaient longues mais utiles (aucune en boucle, contre 9 sur 13
+  pour le 1.5B), coupées dans la dernière section.
 - **LoRA correctif** : résultat rapporté pour information uniquement. Il a été
   entraîné avec un autre prompt système, sans contexte RAG, et quantifié par un
   pipeline local différent du GGUF officiel : il n'est pas représentatif d'un
   LoRA v2, piste abandonnée.
+
+### Latence dans l'UI
+
+L'API lance un `llama-server` persistant à son démarrage (`server.persistent`) ;
+il n'est relancé que si le modèle ou le contexte changent dans la config. Mesures
+dans l'UI (4 questions avec RAG, cache désactivé, conversation vide, médianes) :
+
+| Modèle | Serveur | Premier mot | Réponse complète | Tokens générés | Tokens/s |
+|--------|---------|-------------|------------------|----------------|----------|
+| 1.5B | persistant | 3.2 s | 7.9 s | 244 | 52 |
+| 1.5B | par requête | 4.9 s | 12.6 s | 258 | 35 |
+| 4B | persistant | 11.2 s | 52.3 s | 666 | 17 |
+| 4B | par requête | 19.3 s | 73.7 s | 689 | 13 |
+
+Le serveur persistant fait gagner environ 8 s avant le premier mot avec le 4B
+(chargement du modèle évité). Le délai restant vient surtout du traitement du
+prompt (environ 1700 tokens avec la documentation RAG ; la recherche RAG prend
+0.5 s). Ces mesures ont été faites avec les réglages communs (1024 tokens max).
 
 Reproduire :
 
