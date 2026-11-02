@@ -5,10 +5,9 @@ Expose le pipeline de chat (llama.cpp + RAG) via HTTP.
 """
 import base64
 import json
-import socket
-import subprocess
+import logging
 from collections.abc import AsyncIterator
-from pathlib import Path
+from contextlib import asynccontextmanager
 from typing import Literal
 
 import httpx
@@ -29,17 +28,42 @@ from .chat import (
 from .inference import (
     LENGTH_LIMIT_NOTE,
     ContextOverflowError,
-    chat_ctx_size,
+    model_name,
     overflow_message,
     sampling_params,
     server_payload_sampling,
 )
+from .llama_server import (
+    find_free_port,
+    is_persistent,
+    server_manager,
+    start_process,
+    stop_process,
+    wait_healthy,
+)
 from .rag import check_rag_available
+
+logger = logging.getLogger(__name__)
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    """Lance le llama-server persistant au demarrage, l'arrete a l'extinction."""
+    config = load_config()
+    if is_persistent(config):
+        try:
+            await server_manager.ensure(config)
+            logger.info("llama-server pret (%s)", server_manager.status())
+        except Exception as exc:  # relance a la premiere requete
+            logger.warning("llama-server non demarre : %s", exc)
+    yield
+    server_manager.stop()
+
 
 app = FastAPI(
     title="RustSensei",
     description="Assistant Rust local - API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 
@@ -84,16 +108,56 @@ class ChatResponse(BaseModel):
     rag_used: bool = False
 
 
-LLAMA_SERVER_BIN = (
-    Path(__file__).parent.parent / "vendor" / "llama.cpp" / "build" / "bin" / "llama-server"
-)
+async def _chat_completion_stream(
+    base_url: str, config: dict, user_content: str, system: str
+) -> AsyncIterator[str]:
+    """Requete de chat en streaming vers un llama-server deja pret."""
+    async with httpx.AsyncClient(timeout=300.0) as client:
+        async with client.stream(
+            "POST",
+            f"{base_url}/v1/chat/completions",
+            json={
+                "model": "rustsensei",
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user_content},
+                ],
+                "stream": True,
+                # Meme echantillonnage que l'evaluation (source unique)
+                **server_payload_sampling(sampling_params(config)),
+            },
+        ) as response:
+            if response.status_code != 200:
+                body = (await response.aread()).decode("utf-8", errors="replace")
+                try:
+                    error = json.loads(body).get("error", body)
+                except (json.JSONDecodeError, AttributeError):
+                    error = body
+                raise _llama_server_error(error)
 
+            finish_reason = None
+            async for line in response.aiter_lines():
+                line = line.strip()
+                if not line.startswith("data: "):
+                    continue
+                payload = line[len("data: ") :].strip()
+                if payload == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(payload)
+                except json.JSONDecodeError:
+                    continue
+                if "error" in chunk:
+                    raise _llama_server_error(chunk["error"])
+                choice = (chunk.get("choices") or [{}])[0]
+                finish_reason = choice.get("finish_reason") or finish_reason
+                content = (choice.get("delta") or {}).get("content") or ""
+                if content:
+                    yield content
 
-def _find_free_port() -> int:
-    """Retourne un port TCP libre."""
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+            # Pas de troncature silencieuse : limite de tokens ou contexte plein
+            if finish_reason == "length":
+                yield LENGTH_LIMIT_NOTE
 
 
 async def _stream_llama_response(
@@ -103,7 +167,9 @@ async def _stream_llama_response(
     Genere une reponse via llama-server (API OpenAI-compatible) en streaming.
 
     llama-server applique lui-meme le template de chat du modele : le contenu
-    utilisateur ne doit donc pas etre deja formate en ChatML.
+    utilisateur ne doit donc pas etre deja formate en ChatML. En mode persistant
+    (defaut), le serveur lance au demarrage de l'API est reutilise ; sinon un
+    serveur est lance pour la requete puis arrete.
 
     Args:
         config: Configuration du modele/inference.
@@ -113,101 +179,22 @@ async def _stream_llama_response(
     Yields:
         Tokens de contenu au fur et a mesure.
     """
-    port = _find_free_port()
-    model_path = str(
-        (Path(__file__).parent.parent / config["paths"]["model"]).resolve()
-    )
-    proc = subprocess.Popen(
-        [
-            str(LLAMA_SERVER_BIN),
-            "-m",
-            model_path,
-            "--host",
-            "127.0.0.1",
-            "--port",
-            str(port),
-            # Contexte de conversation (historique compris) ; un seul emplacement
-            # de requete pour qu'elle dispose de tout ce contexte.
-            "-c",
-            str(chat_ctx_size(config)),
-            "--parallel",
-            "1",
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
+    if is_persistent(config):
+        base_url = await server_manager.ensure(config)
+        async for token in _chat_completion_stream(base_url, config, user_content, system):
+            yield token
+        return
 
+    port = find_free_port()
+    proc = start_process(config, port)
     try:
-        # Attendre que le serveur soit pret (max ~60s)
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            for _ in range(240):
-                try:
-                    health = await client.get(f"http://127.0.0.1:{port}/health")
-                    if health.status_code == 200:
-                        break
-                except httpx.HTTPError:
-                    pass
-                await _sleep(0.25)
-            else:
-                proc.terminate()
-                try:
-                    proc.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    proc.kill()
-                raise RuntimeError("llama-server did not start in time")
-
-        async with httpx.AsyncClient(timeout=300.0) as client:
-            async with client.stream(
-                "POST",
-                f"http://127.0.0.1:{port}/v1/chat/completions",
-                json={
-                    "model": "rustsensei",
-                    "messages": [
-                        {"role": "system", "content": system},
-                        {"role": "user", "content": user_content},
-                    ],
-                    "stream": True,
-                    # Meme echantillonnage que l'evaluation (source unique)
-                    **server_payload_sampling(sampling_params(config)),
-                },
-            ) as response:
-                if response.status_code != 200:
-                    body = (await response.aread()).decode("utf-8", errors="replace")
-                    try:
-                        error = json.loads(body).get("error", body)
-                    except (json.JSONDecodeError, AttributeError):
-                        error = body
-                    raise _llama_server_error(error)
-
-                finish_reason = None
-                async for line in response.aiter_lines():
-                    line = line.strip()
-                    if not line.startswith("data: "):
-                        continue
-                    payload = line[len("data: ") :].strip()
-                    if payload == "[DONE]":
-                        break
-                    try:
-                        chunk = json.loads(payload)
-                    except json.JSONDecodeError:
-                        continue
-                    if "error" in chunk:
-                        raise _llama_server_error(chunk["error"])
-                    choice = (chunk.get("choices") or [{}])[0]
-                    finish_reason = choice.get("finish_reason") or finish_reason
-                    content = (choice.get("delta") or {}).get("content") or ""
-                    if content:
-                        yield content
-
-                # Pas de troncature silencieuse : limite de tokens ou contexte plein
-                if finish_reason == "length":
-                    yield LENGTH_LIMIT_NOTE
+        await wait_healthy(port, proc)
+        async for token in _chat_completion_stream(
+            f"http://127.0.0.1:{port}", config, user_content, system
+        ):
+            yield token
     finally:
-        proc.terminate()
-        try:
-            proc.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            proc.kill()
+        stop_process(proc)
 
 
 def _llama_server_error(error) -> Exception:
@@ -229,12 +216,6 @@ def _generate(prompt: str, config: dict) -> str:
         return call_llama_cli(prompt, config)
     except ContextOverflowError as e:
         raise HTTPException(status_code=413, detail=str(e)) from e
-
-
-async def _sleep(seconds: float) -> None:
-    import asyncio
-
-    await asyncio.sleep(seconds)
 
 
 def _history_dicts(request: ChatRequest) -> list[dict]:
@@ -284,7 +265,9 @@ def chat(request: ChatRequest) -> ChatResponse:
     cache_embedder = _cache_embedder(request, retriever)
 
     if retriever:
-        cached = response_cache.get(cache_query, embedder=cache_embedder)
+        cached = response_cache.get(
+            cache_query, embedder=cache_embedder, model=model_name(config)
+        )
         if cached is not None:
             response = cached["response"]
             citations = cached["citations"]
@@ -304,7 +287,11 @@ def chat(request: ChatRequest) -> ChatResponse:
                 config,
             )
             response_cache.set(
-                cache_query, response, citations, embedder=cache_embedder
+                cache_query,
+                response,
+                citations,
+                embedder=cache_embedder,
+                model=model_name(config),
             )
 
     if response is None:
@@ -355,7 +342,9 @@ async def chat_stream(request: ChatRequest):
     citations = []
 
     if retriever is not None:
-        cached = response_cache.get(cache_query, embedder=cache_embedder)
+        cached = response_cache.get(
+            cache_query, embedder=cache_embedder, model=model_name(config)
+        )
         if cached is not None:
             citations = cached["citations"]
         else:
@@ -409,7 +398,11 @@ async def chat_stream(request: ChatRequest):
 
         if retriever is not None and full_response:
             response_cache.set(
-                cache_query, full_response, citations, embedder=cache_embedder
+                cache_query,
+                full_response,
+                citations,
+                embedder=cache_embedder,
+                model=model_name(config),
             )
 
     return StreamingResponse(
@@ -427,6 +420,7 @@ def health() -> dict:
         "status": "ok",
         "rag_available": rag_available,
         "rag_error": rag_error or None,
+        "llama_server": server_manager.status(),
     }
 
 

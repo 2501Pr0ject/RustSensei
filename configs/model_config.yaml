@@ -30,6 +30,11 @@ inference:
   repeat_penalty: 1.1
   seed: 42            # Seed pour reproductibilité (éval)
 
+# Serveur llama.cpp de l'UI (streaming)
+server:
+  persistent: true    # lancé au démarrage de l'API, relancé seulement si le modèle
+                      # ou n_ctx_chat changent ; false = un llama-server par requête
+
 # Réglages d'échantillonnage par modèle (clé = nom du fichier GGUF). Ils
 # surchargent `inference` pour ce modèle ; clés possibles : temp, top_k, top_p,
 # min_p, repeat_penalty, n_predict. Vide = valeurs ci-dessus pour tous.

@@ -17,7 +17,13 @@ def test_health(monkeypatch):
     response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok", "rag_available": True, "rag_error": None}
+    data = response.json()
+    assert {k: data[k] for k in ("status", "rag_available", "rag_error")} == {
+        "status": "ok",
+        "rag_available": True,
+        "rag_error": None,
+    }
+    assert set(data["llama_server"]) == {"running", "model", "ctx", "last_load_seconds", "loads"}
 
 
 def test_health_reports_missing_rag_index(monkeypatch):
@@ -474,6 +480,9 @@ def _patch_llama_server(monkeypatch, handler, captured):
     import httpx
 
     class FakeProc:
+        def poll(self):
+            return None
+
         def terminate(self):
             pass
 
@@ -488,7 +497,7 @@ def _patch_llama_server(monkeypatch, handler, captured):
         return FakeProc()
 
     real_client = httpx.AsyncClient
-    monkeypatch.setattr("app.api.subprocess.Popen", fake_popen)
+    monkeypatch.setattr("app.llama_server.subprocess.Popen", fake_popen)
     monkeypatch.setattr(
         httpx, "AsyncClient",
         lambda *a, **k: real_client(transport=httpx.MockTransport(handler), **k),
@@ -525,15 +534,18 @@ def test_llama_server_gets_eval_sampling_context_and_flags_length(monkeypatch):
 
     _patch_llama_server(monkeypatch, handler, captured)
 
-    tokens = _collect(_stream_llama_response(load_config(), "Q", "S"))
+    config = load_config()
+    config["server"] = {"persistent": False}
+    tokens = _collect(_stream_llama_response(config, "Q", "S"))
 
     args = captured["args"]
     assert args[args.index("-c") + 1] == "8192"
     assert args[args.index("--parallel") + 1] == "1"
     body = captured["body"]
-    assert {k: body[k] for k in ("temperature", "top_k", "top_p", "min_p", "repeat_penalty", "max_tokens")} == {
-        "temperature": 0.7, "top_k": 40, "top_p": 0.9, "min_p": 0.05, "repeat_penalty": 1.1, "max_tokens": 1024,
-    }
+    from app.inference import sampling_params, server_payload_sampling
+
+    expected = server_payload_sampling(sampling_params(config))
+    assert {k: body[k] for k in expected} == expected
     assert tokens[:2] == ["Bon", "jour"]
     assert "limite de longueur atteinte" in tokens[2]
 
@@ -557,5 +569,7 @@ def test_llama_server_context_error_becomes_overflow(monkeypatch):
 
     _patch_llama_server(monkeypatch, handler, {})
 
+    config = load_config()
+    config["server"] = {"persistent": False}
     with pytest.raises(ContextOverflowError, match="9100 tokens pour un maximum de 8192"):
-        _collect(_stream_llama_response(load_config(), "Q", "S"))
+        _collect(_stream_llama_response(config, "Q", "S"))
