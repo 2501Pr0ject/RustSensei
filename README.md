@@ -37,6 +37,14 @@ CLI et évaluation ─────────► llama-completion (même modèl
 
 - **UI** : réponses en streaming, sources cliquables, saisie multi-ligne pour
   coller du code, bouton Stop, copie des blocs de code, conversation sur 3 échanges.
+- **RAG, CAG, KAG** : RustSensei fait du **RAG** hybride (recherche dense et
+  lexicale, reranker) avec un seuil de pertinence. Un **graphe de 35 concepts
+  Rust** avec synonymes FR/EN élargit la requête d'un canal lexical : c'est une
+  première brique vers une approche **KAG**, sans graphe tiré des documents ni
+  raisonnement, et sa contribution seule n'a pas été mesurée. Le **CAG**
+  (charger toute la base de connaissances dans le contexte du modèle) est écarté :
+  la documentation dépasse largement les 8 192 tokens de contexte. Le cache des
+  réponses est un cache sémantique distinct, sans rapport avec le CAG.
 - **Sources RAG** : Rust Book, Reference, Rust by Example, Cookbook, Async Book,
   Rustonomicon, Edition Guide, Rustlings. Les exemples de code que mdBook inclut
   depuis d'autres fichiers (`{{#include}}`, `{{#rustdoc_include}}`) sont résolus

@@ -1,5 +1,5 @@
 """
-Cache pour RustSensei (CAG - Cache Augmented Generation).
+Cache sémantique de réponses pour RustSensei (réponses exactes ou proches réutilisées).
 
 Mémorise les réponses générées pour éviter de relancer le modèle
 sur des questions déjà traitées (cache de réponse).

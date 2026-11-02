@@ -1,5 +1,5 @@
-# Graphe de connaissances Rust (KAG)
-# ==================================
+# Graphe de concepts Rust (expansion de requête)
+# ==============================================
 # Concepts cures : aliases (avec synonymes FR) et concepts lies.
 # Utilise par le retrieval pour elargir les requetes multi-domaines
 # (ex. "Rc entre threads" -> Send/Sync/Arc).

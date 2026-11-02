@@ -91,7 +91,7 @@ retrieval:
   score_threshold: 0.3   # Score minimum (cosine similarity)
   max_citations: 4       # Citations max à afficher
 
-# Retrieval hybride (KAG - fusion dense + lexicale)
+# Recherche hybride (fusion dense + lexicale BM25, RRF)
 hybrid:
   enabled: true
   rrf_k: 60              # Constante de fusion Reciprocal Rank Fusion
@@ -101,7 +101,7 @@ hybrid:
   # (0.30 à 0.41) et ne prive de documentation qu'1 question d'évaluation sur 91.
   min_dense_score: 0.42
 
-# Graphe de connaissances Rust (KAG - elargissement des requetes)
+# Expansion de requête par graphe de concepts Rust (canal BM25 supplémentaire)
 knowledge:
   enabled: true
   path: "configs/knowledge_graph.yaml"
@@ -126,7 +126,7 @@ augmentation:
   max_context_tokens: 1500
   citation_format: "[{source} — {heading}]"
 
-# Cache (CAG - Cache Augmented Generation)
+# Cache sémantique de réponses
 cache:
   ttl_seconds: 604800  # 7 jours
   path: "data/cache.json"
