@@ -95,3 +95,20 @@ def test_self_inclusion_stops_at_max_depth(tmp_path):
 
     assert ok == 1
     assert text.count("x") <= 7
+
+
+def test_strip_filename_emphasis():
+    from mdbook_includes import strip_filename_emphasis
+
+    text = (
+        "Ouvrez _Cargo.toml_ puis *src/main.rs* et _add_one/Cargo.toml_ ; "
+        "gardez **src/lib.rs**, le mot _important_ et snake_case_name."
+    )
+
+    cleaned, count = strip_filename_emphasis(text)
+
+    assert count == 3
+    assert cleaned == (
+        "Ouvrez Cargo.toml puis src/main.rs et add_one/Cargo.toml ; "
+        "gardez **src/lib.rs**, le mot _important_ et snake_case_name."
+    )

@@ -91,3 +91,23 @@ def resolve_includes(content: str, base_dir: Path, depth: int = 0) -> tuple[str,
         return text
 
     return DIRECTIVE.sub(replace, content), resolved, unresolved
+
+
+# Noms de fichiers mis en italique par le Rust Book (_Cargo.toml_, *src/main.rs*) :
+# le modele recopie ces marqueurs tels quels dans ses reponses.
+_FILE = r"(?:Cargo\.toml|Cargo\.lock|src(?:/[\w./-]+)?|[\w-]+\.rs|[\w/-]+\.toml)"
+FILENAME_EMPHASIS = re.compile(
+    r"(?<![\w*])_(" + _FILE + r")_(?!\w)" + r"|(?<![\w*])\*(" + _FILE + r")\*(?![\w*])"
+)
+
+
+def strip_filename_emphasis(text: str) -> tuple[str, int]:
+    """Retire l'italique autour des noms de fichiers ; renvoie (texte, nombre de retraits)."""
+    count = 0
+
+    def replace(match: re.Match) -> str:
+        nonlocal count
+        count += 1
+        return match.group(1) or match.group(2)
+
+    return FILENAME_EMPHASIS.sub(replace, text), count

@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import yaml
-from mdbook_includes import resolve_includes
+from mdbook_includes import resolve_includes, strip_filename_emphasis
 from rich.console import Console
 from rich.progress import track
 
@@ -343,9 +343,13 @@ def process_source(source_config: dict, chunking_config: dict) -> list[Chunk]:
         # par le contenu des fichiers inclus (dossier listings/ du Rust Book...)
         if source_type != "rust":
             content, resolved, unresolved = resolve_includes(content, file.parent)
-            stats = INCLUDE_STATS.setdefault(source_id, {"resolved": 0, "unresolved": 0})
+            content, emphasis_removed = strip_filename_emphasis(content)
+            stats = INCLUDE_STATS.setdefault(
+                source_id, {"resolved": 0, "unresolved": 0, "filename_emphasis_removed": 0}
+            )
             stats["resolved"] += resolved
             stats["unresolved"] += unresolved
+            stats["filename_emphasis_removed"] += emphasis_removed
 
         # Skip les fichiers vides ou très courts
         if len(content) < 100:
