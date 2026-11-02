@@ -185,3 +185,14 @@ def test_call_llama_cli_flags_context_full_truncation(monkeypatch):
     )
 
     assert "limite de longueur atteinte" in call_llama_cli("prompt", load_config())
+
+
+def test_system_prompt_has_conditional_format_and_no_placeholders():
+    from app.chat import load_config
+
+    system = load_config()["prompt"]["system"]
+
+    assert "[" not in system and "]" not in system
+    for title in ("## TL;DR", "## Problème", "## Solution", "## Explication", "## À retenir"):
+        assert title in system
+    assert "salutation" in system and "sans titres ni sections" in system
