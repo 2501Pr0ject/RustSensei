@@ -11,10 +11,14 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import yaml
+from mdbook_includes import resolve_includes
 from rich.console import Console
 from rich.progress import track
 
 console = Console()
+
+# Directives mdBook resolues / non resolues pendant le build (pour le manifest)
+INCLUDE_STATS: dict[str, dict[str, int]] = {}
 
 PROJECT_ROOT = Path(__file__).parent.parent
 CONFIGS_DIR = PROJECT_ROOT / "configs"
@@ -335,6 +339,14 @@ def process_source(source_config: dict, chunking_config: dict) -> list[Chunk]:
             console.print(f"  [red]Erreur lecture {file}: {e}[/red]")
             continue
 
+        # Code des exemples mdBook : remplacer {{#include}} / {{#rustdoc_include}}
+        # par le contenu des fichiers inclus (dossier listings/ du Rust Book...)
+        if source_type != "rust":
+            content, resolved, unresolved = resolve_includes(content, file.parent)
+            stats = INCLUDE_STATS.setdefault(source_id, {"resolved": 0, "unresolved": 0})
+            stats["resolved"] += resolved
+            stats["unresolved"] += unresolved
+
         # Skip les fichiers vides ou très courts
         if len(content) < 100:
             continue
@@ -440,6 +452,7 @@ def save_index(index, chunks: list[Chunk], config: dict):
             if src.get("enabled", False)
         },
         "total_chunks": len(chunks),
+        "mdbook_includes": INCLUDE_STATS,
         "total_tokens": total_tokens,
         "avg_tokens_per_chunk": total_tokens // len(chunks) if chunks else 0,
         "chunking": config["chunking"],
