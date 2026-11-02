@@ -12,19 +12,22 @@ connexion internet, sur un Mac Apple Silicon.
 ## Problème
 
 La documentation Rust est en anglais et les erreurs du compilateur (ownership,
-emprunts, lifetimes) déroutent les débutants. Les assistants en ligne répondent
-bien, mais envoient le code ailleurs et ne citent pas leurs sources. RustSensei
-vise un tuteur **100 % local, en français, qui cite la documentation officielle**,
-avec une contrainte matérielle forte : MacBook M2 16 Go, budget nul.
+emprunts, lifetimes) déroutent les débutants. RustSensei est un tuteur en
+français qui **tourne entièrement sur la machine** : le code et les questions ne
+la quittent jamais, et il ne dépend d'aucun service (ni compte, ni clé d'API, ni
+connexion une fois installé, ni coût à l'usage). Ses réponses s'appuient sur la
+documentation officielle, dont il affiche les sources. Contrainte matérielle :
+MacBook M2 16 Go, budget nul.
 
 ## Architecture
 
 ```
-UI React (Vite) ──► API FastAPI ──► cache des réponses (par modèle, exact + sémantique)
+UI React (Vite) ──► API FastAPI ──► cache des réponses (exact + sémantique)
                         │
-                        ├──► RAG : 8 sources officielles, 2 378 extraits
+                        ├──► RAG : 8 sources officielles, 2 764 extraits
                         │     dense (FAISS, MiniLM multilingue) + BM25 → fusion RRF
                         │     + graphe de connaissances FR/EN → reranker multilingue
+                        │     (aucun contexte si la question est hors documentation)
                         │
                         └──► llama-server persistant (llama.cpp b12032, Metal)
                               Qwen2.5-Coder-1.5B-Instruct, Q4_K_M
@@ -34,7 +37,17 @@ CLI et évaluation ─────────► llama-completion (même modèl
 - **UI** : réponses en streaming, sources cliquables, saisie multi-ligne pour
   coller du code, bouton Stop, copie des blocs de code, conversation sur 3 échanges.
 - **Sources RAG** : Rust Book, Reference, Rust by Example, Cookbook, Async Book,
-  Rustonomicon, Edition Guide, Rustlings.
+  Rustonomicon, Edition Guide, Rustlings. Les exemples de code que mdBook inclut
+  depuis d'autres fichiers (`{{#include}}`, `{{#rustdoc_include}}`) sont résolus
+  à la construction de l'index, et l'italique autour des noms de fichiers est
+  retiré. Si le meilleur extrait reste sous un cosinus de 0,42 (salutation,
+  question hors Rust), aucune documentation n'est injectée.
+- **Format des réponses** : cinq sections (TL;DR, Problème, Solution, Explication,
+  À retenir) pour une question de code ou une erreur de compilation ; réponse
+  simple et directe pour une salutation ou une question générale.
+- **Cache** : une réponse n'est resservie que si le modèle, le prompt système,
+  l'échantillonnage, l'index et les réglages du RAG sont identiques (empreinte
+  dans la clé).
 - **Configuration unique** (`configs/model_config.yaml`) : l'UI, le CLI et
   l'évaluation lisent le même échantillonnage, avec des réglages par modèle
   (`sampling_by_model`). Changer de modèle tient en une ligne (`paths.model`).
@@ -76,6 +89,10 @@ uv run python scripts/rescore_reports.py reports/eval_rag_*.json
 ```
 
 ## Résultats
+
+> Chiffres mesurés avant les changements du 2 novembre (prompt système
+> conditionnel, seuil de pertinence, index sans directives mdBook ni italiques) ;
+> l'évaluation finale du 1.5B et du 4B sur la configuration actuelle les remplacera.
 
 | Modèle | Score /5 | Écart au 1.5B (IC95) | Format 5 sections | Premier mot | Réponse complète | Licence |
 |--------|----------|----------------------|-------------------|-------------|------------------|---------|
@@ -121,16 +138,14 @@ Rapports complets dans `reports/` ; copies renotées dans `reports/rescored/`.
   compilent entièrement.
 - **Réponses coupées** : 13 sur 273 atteignent 1024 tokens, dont 9 bouclent
   sur elles-mêmes. Les coupures sont signalées dans l'UI.
-- **Index RAG** : 59 % des extraits du Rust Book (351 sur 592) contiennent une
-  directive mdBook non résolue (`{{#rustdoc_include …}}`) à la place du code des
-  exemples, soit 18 % de l'index.
+- **Questions générales** : sans documentation pertinente, le 1.5B invente
+  (« Rust développé par Microsoft en 2013 ») et applique souvent la structure en
+  5 sections là où une réponse simple est demandée ; le 4B suit la consigne.
 - **Latence** : le délai avant le premier mot vient surtout du traitement du
   prompt (environ 1 700 tokens avec la documentation ; la recherche prend 0,5 s).
 - **Évaluation** : notation automatique (mots-clés, compilation), sans relecture
   humaine ni juge ; elle ne mesure pas l'exactitude technique, et des erreurs de
   fond subsistent, y compris chez le 4B.
-- **Cache** : une réponse est resservie 7 jours au même modèle, même si
-  l'échantillonnage ou le prompt système ont changé entre-temps.
 - **Conversation** : contexte de 8192 tokens (au-delà, erreur 413 explicite) ;
   historique limité à 6 messages, chacun tronqué à 666 caractères.
 - **Plateforme** : testé uniquement sur Mac Apple Silicon (M2 16 Go) ; pas d'image Docker.
