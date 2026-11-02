@@ -573,3 +573,29 @@ def test_llama_server_context_error_becomes_overflow(monkeypatch):
     config["server"] = {"persistent": False}
     with pytest.raises(ContextOverflowError, match="9100 tokens pour un maximum de 8192"):
         _collect(_stream_llama_response(config, "Q", "S"))
+
+
+def test_warm_up_rag_loads_retriever_when_index_available(monkeypatch):
+    from app.api import RAG_WARMUP_QUERY, warm_up_rag
+
+    calls = []
+
+    class Retriever:
+        def retrieve(self, query):
+            calls.append(query)
+            return []
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (True, ""))
+    monkeypatch.setattr("app.api.get_rag_retriever", Retriever)
+
+    assert warm_up_rag() is True
+    assert calls == [RAG_WARMUP_QUERY]
+
+
+def test_warm_up_rag_skips_without_index(monkeypatch):
+    from app.api import warm_up_rag
+
+    monkeypatch.setattr("app.api.check_rag_available", lambda: (False, "index absent"))
+    monkeypatch.setattr("app.api.get_rag_retriever", lambda: (_ for _ in ()).throw(AssertionError))
+
+    assert warm_up_rag() is False

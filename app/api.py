@@ -3,6 +3,7 @@ API REST FastAPI pour RustSensei (M8).
 
 Expose le pipeline de chat (llama.cpp + RAG) via HTTP.
 """
+import asyncio
 import base64
 import json
 import logging
@@ -45,9 +46,25 @@ from .rag import check_rag_available
 
 logger = logging.getLogger(__name__)
 
+RAG_WARMUP_QUERY = "Comment déclarer une variable mutable en Rust ?"
+
+
+def warm_up_rag() -> bool:
+    """
+    Charge les modeles du RAG (embeddings, reranker, BM25) avant la premiere question.
+
+    Sans cela, la premiere question avec RAG apres le demarrage attend environ 10 s.
+    """
+    available, _ = check_rag_available()
+    if not available:
+        return False
+    get_rag_retriever().retrieve(RAG_WARMUP_QUERY)
+    return True
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Lance le llama-server persistant au demarrage, l'arrete a l'extinction."""
+    """Lance le llama-server persistant et prechauffe le RAG ; arrete le serveur a la fin."""
     config = load_config()
     if is_persistent(config):
         try:
@@ -55,6 +72,11 @@ async def lifespan(_app: FastAPI):
             logger.info("llama-server pret (%s)", server_manager.status())
         except Exception as exc:  # relance a la premiere requete
             logger.warning("llama-server non demarre : %s", exc)
+    try:
+        if await asyncio.to_thread(warm_up_rag):
+            logger.info("RAG prechauffe")
+    except Exception as exc:  # le RAG se chargera a la premiere question
+        logger.warning("prechauffage du RAG impossible : %s", exc)
     yield
     server_manager.stop()
 
