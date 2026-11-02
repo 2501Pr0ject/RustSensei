@@ -28,7 +28,7 @@ from .chat import (
 from .inference import (
     LENGTH_LIMIT_NOTE,
     ContextOverflowError,
-    model_name,
+    generation_signature,
     overflow_message,
     sampling_params,
     server_payload_sampling,
@@ -266,7 +266,7 @@ def chat(request: ChatRequest) -> ChatResponse:
 
     if retriever:
         cached = response_cache.get(
-            cache_query, embedder=cache_embedder, model=model_name(config)
+            cache_query, embedder=cache_embedder, signature=generation_signature(config)
         )
         if cached is not None:
             response = cached["response"]
@@ -291,7 +291,7 @@ def chat(request: ChatRequest) -> ChatResponse:
                 response,
                 citations,
                 embedder=cache_embedder,
-                model=model_name(config),
+                signature=generation_signature(config),
             )
 
     if response is None:
@@ -343,7 +343,7 @@ async def chat_stream(request: ChatRequest):
 
     if retriever is not None:
         cached = response_cache.get(
-            cache_query, embedder=cache_embedder, model=model_name(config)
+            cache_query, embedder=cache_embedder, signature=generation_signature(config)
         )
         if cached is not None:
             citations = cached["citations"]
@@ -402,7 +402,7 @@ async def chat_stream(request: ChatRequest):
                 full_response,
                 citations,
                 embedder=cache_embedder,
-                model=model_name(config),
+                signature=generation_signature(config),
             )
 
     return StreamingResponse(

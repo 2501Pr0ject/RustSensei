@@ -267,37 +267,37 @@ def test_composite_key_ignores_invalid_turns():
     assert "user:question valide" in key
 
 
-def test_cache_serves_only_the_model_that_produced_the_answer():
+def test_cache_serves_only_answers_with_same_signature():
     from app.cache import ResponseCache
 
     cache = ResponseCache(ttl_seconds=3600)
-    cache.set("Qu'est-ce qu'un Rc ?", "réponse 1.5B", model="qwen-1.5b.gguf")
+    cache.set("Qu'est-ce qu'un Rc ?", "réponse 1.5B", signature="qwen-1.5b.gguf")
 
-    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen-1.5b.gguf")["response"] == "réponse 1.5B"
-    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen3-4b.gguf") is None
+    assert cache.get("Qu'est-ce qu'un Rc ?", signature="qwen-1.5b.gguf")["response"] == "réponse 1.5B"
+    assert cache.get("Qu'est-ce qu'un Rc ?", signature="qwen3-4b.gguf") is None
 
-    cache.set("Qu'est-ce qu'un Rc ?", "réponse 4B", model="qwen3-4b.gguf")
-    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen3-4b.gguf")["response"] == "réponse 4B"
+    cache.set("Qu'est-ce qu'un Rc ?", "réponse 4B", signature="qwen3-4b.gguf")
+    assert cache.get("Qu'est-ce qu'un Rc ?", signature="qwen3-4b.gguf")["response"] == "réponse 4B"
 
 
-def test_semantic_cache_ignores_other_models():
+def test_semantic_cache_ignores_other_signatures():
     from app.cache import ResponseCache
 
     cache = ResponseCache(ttl_seconds=3600, semantic_enabled=True, semantic_threshold=0.5)
     embed = lambda text: [1.0, 0.0]  # noqa: E731 - meme vecteur : toujours proche
-    cache.set("Comment créer un thread ?", "réponse 1.5B", embedder=embed, model="a.gguf")
+    cache.set("Comment créer un thread ?", "réponse 1.5B", embedder=embed, signature="a.gguf")
 
-    assert cache.get("Comment on crée un thread ?", embedder=embed, model="b.gguf") is None
-    assert cache.get("Comment on crée un thread ?", embedder=embed, model="a.gguf")["response"] == "réponse 1.5B"
+    assert cache.get("Comment on crée un thread ?", embedder=embed, signature="b.gguf") is None
+    assert cache.get("Comment on crée un thread ?", embedder=embed, signature="a.gguf")["response"] == "réponse 1.5B"
 
 
-def test_legacy_entries_without_model_are_not_served_to_a_model():
+def test_legacy_entries_without_signature_are_not_served():
     from app.cache import ResponseCache
 
     cache = ResponseCache(ttl_seconds=3600)
     cache.set("question", "ancienne réponse")  # entrée antérieure, sans modèle
 
-    assert cache.get("question", model="qwen3-4b.gguf") is None
+    assert cache.get("question", signature="qwen3-4b.gguf") is None
     assert cache.get("question")["response"] == "ancienne réponse"
 
 

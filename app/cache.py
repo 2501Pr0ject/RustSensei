@@ -80,7 +80,7 @@ class ResponseCache:
         query: str,
         now: Optional[float] = None,
         embedder: Optional[Embedder] = None,
-        model: Optional[str] = None,
+        signature: Optional[str] = None,
     ) -> Optional[dict]:
         """
         Récupère une réponse mise en cache.
@@ -93,7 +93,8 @@ class ResponseCache:
             query: Question de l'utilisateur.
             now: Horloge injectable (tests).
             embedder: Fonction texte -> vecteur (cache sémantique).
-            model: Modèle courant (nom du GGUF) ; seules ses réponses sont servies.
+            signature: Empreinte de génération (modèle, prompt système, échantillonnage,
+                index RAG) ; seules les réponses produites avec la même empreinte sont servies.
 
         Returns:
             Dictionnaire {response, citations, timestamp} ou None si absent ou expiré.
@@ -109,11 +110,11 @@ class ResponseCache:
         if entry is not None and self._is_expired(entry, current):
             del self._entries[key]
             self._save()
-        elif entry is not None and self._same_model(entry, model):
+        elif entry is not None and self._same_signature(entry, signature):
             self.hits += 1
             return entry
 
-        entry = self._semantic_get(query, current, embedder, model)
+        entry = self._semantic_get(query, current, embedder, signature)
         if entry is not None:
             self.hits += 1
             return entry
@@ -128,9 +129,9 @@ class ResponseCache:
         citations: Optional[list] = None,
         timestamp: Optional[float] = None,
         embedder: Optional[Embedder] = None,
-        model: Optional[str] = None,
+        signature: Optional[str] = None,
     ) -> None:
-        """Met en cache une réponse générée (avec son embedding et son modèle)."""
+        """Met en cache une réponse générée (avec son embedding et son empreinte)."""
         if self.ttl_seconds <= 0:
             return
 
@@ -140,8 +141,8 @@ class ResponseCache:
             "citations": citations or [],
             "timestamp": timestamp if timestamp is not None else time.time(),
         }
-        if model is not None:
-            entry["model"] = model
+        if signature is not None:
+            entry["signature"] = signature
 
         embedding = self._embed(query, embedder)
         if embedding is not None:
@@ -170,15 +171,15 @@ class ResponseCache:
         }
 
     @staticmethod
-    def _same_model(entry: dict, model: Optional[str]) -> bool:
+    def _same_signature(entry: dict, signature: Optional[str]) -> bool:
         """
-        Une réponse n'est servie qu'au modèle qui l'a produite.
+        Une réponse n'est resservie qu'avec la même empreinte de génération.
 
-        Sans modèle demandé (appels historiques, tests), toute entrée convient.
-        Les entrées antérieures sans champ "model" ne sont pas servies à un
-        modèle donné : elles proviennent d'un modèle inconnu.
+        Sans empreinte demandée (tests), toute entrée convient. Les entrées sans
+        empreinte (antérieures) ne sont pas servies : leurs conditions de
+        génération sont inconnues.
         """
-        return model is None or entry.get("model") == model
+        return signature is None or entry.get("signature") == signature
 
     def _is_expired(self, entry: dict, now: float) -> bool:
         """Indique si une entrée a dépassé le TTL."""
@@ -189,7 +190,7 @@ class ResponseCache:
         query: str,
         now: float,
         embedder: Optional[Embedder],
-        model: Optional[str] = None,
+        signature: Optional[str] = None,
     ) -> Optional[dict]:
         """Retourne l'entrée la plus proche si sa similarité dépasse le seuil."""
         if not self.semantic_enabled or embedder is None:
@@ -209,7 +210,7 @@ class ResponseCache:
                 continue
 
             embedding = entry.get("embedding")
-            if not embedding or not self._same_model(entry, model):
+            if not embedding or not self._same_signature(entry, signature):
                 continue
 
             score = self._cosine_similarity(query_embedding, embedding)

@@ -101,3 +101,44 @@ def test_overflow_message_formats():
         "request (9100 tokens) exceeds the available context size (8192 tokens), try increasing it"
     )
     assert "Effacez la conversation" in overflow_message("")
+
+
+def _signature_config():
+    import copy
+
+    config = copy.deepcopy(CONFIG)
+    config["prompt"] = {"system": "Tu es RustSensei.", "template": "{system}\n{user}"}
+    return config
+
+
+def test_generation_signature_is_stable_and_tracks_generation_settings(tmp_path):
+    import json
+
+    from app.inference import generation_signature
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"build_timestamp": "t1", "total_chunks": 10}))
+    base = _signature_config()
+    reference = generation_signature(base, manifest)
+
+    assert generation_signature(_signature_config(), manifest) == reference
+    assert reference.startswith("base.gguf@")
+
+    changed_system = _signature_config()
+    changed_system["prompt"]["system"] = "Tu es un autre assistant."
+    changed_sampling = _signature_config()
+    changed_sampling["inference"]["temp"] = 0.2
+    changed_model = _signature_config()
+    changed_model["paths"]["model"] = "models/autre.gguf"
+    for config in (changed_system, changed_sampling, changed_model):
+        assert generation_signature(config, manifest) != reference
+
+    manifest.write_text(json.dumps({"build_timestamp": "t2", "total_chunks": 12}))
+    assert generation_signature(base, manifest) != reference
+
+
+def test_generation_signature_without_rag_index(tmp_path):
+    from app.inference import generation_signature, rag_index_id
+
+    assert rag_index_id(tmp_path / "absent.json") is None
+    assert generation_signature(_signature_config(), tmp_path / "absent.json").startswith("base.gguf@")

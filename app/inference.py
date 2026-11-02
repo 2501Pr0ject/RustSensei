@@ -6,6 +6,8 @@ evaluation) lisent l'echantillonnage ici, pour que l'UI tourne avec les reglages
 mesures par l'evaluation.
 """
 
+import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -87,6 +89,39 @@ def sampling_params(config: dict, model_path: str | None = None) -> dict:
 def model_name(config: dict) -> str:
     """Nom du fichier GGUF utilise (identifie le modele, par exemple pour le cache)."""
     return Path(config["paths"]["model"]).name
+
+
+RAG_MANIFEST = Path(__file__).parent.parent / "rag" / "index" / "manifest.json"
+
+
+def rag_index_id(manifest_path: Path = RAG_MANIFEST) -> str | None:
+    """Identifiant de l'index RAG (date de construction et nombre d'extraits)."""
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return f"{manifest.get('build_timestamp')}|{manifest.get('total_chunks')}"
+
+
+def generation_signature(config: dict, manifest_path: Path = RAG_MANIFEST) -> str:
+    """
+    Empreinte de tout ce qui determine une reponse, hors question et historique.
+
+    Modele, prompt systeme, gabarit, echantillonnage effectif et index RAG : une
+    reponse en cache n'est resservie que si cette empreinte est identique.
+    """
+    prompt = config.get("prompt") or {}
+    payload = {
+        "model": model_name(config),
+        "system": prompt.get("system"),
+        "template": prompt.get("template"),
+        "sampling": sampling_params(config),
+        "rag_index": rag_index_id(manifest_path),
+    }
+    digest = hashlib.sha256(
+        json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
+    ).hexdigest()[:16]
+    return f"{model_name(config)}@{digest}"
 
 
 def chat_ctx_size(config: dict) -> int:
