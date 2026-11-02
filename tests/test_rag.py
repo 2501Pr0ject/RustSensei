@@ -291,3 +291,47 @@ def test_graph_expansion_skips_empty_graph():
         retriever._graph_expansion("Rc", {"enabled": True, "max_expansions": 2})
         == []
     )
+
+
+def _hybrid_retriever(best_cosine: float):
+    """Retriever hybride avec index, modele et BM25 simules."""
+    import numpy as np
+
+    retriever = make_retriever()
+    retriever.config = {
+        **RAG_CONFIG,
+        "hybrid": {"enabled": True, "rrf_k": 60, "candidate_k": 3, "min_dense_score": 0.42},
+        "embeddings": {"normalize": True},
+        "knowledge": {"enabled": False},
+    }
+    retriever.metadata = [{"text": f"extrait {i}", "source": "book"} for i in range(3)]
+    model = Mock()
+    model.encode.return_value = np.zeros((1, 4), dtype="float32")
+    retriever._get_model = lambda: model
+    index = Mock()
+    index.search.return_value = (
+        np.array([[best_cosine, best_cosine - 0.1, best_cosine - 0.2]], dtype="float32"),
+        np.array([[0, 1, 2]]),
+    )
+    retriever.index = index
+    bm25 = Mock()
+    bm25.scores.return_value = [1.0, 0.5, 0.2]
+    retriever._get_bm25 = lambda: bm25
+    return retriever
+
+
+def test_hybrid_retrieval_injects_nothing_below_relevance_threshold():
+    assert _hybrid_retriever(best_cosine=0.37).retrieve("Bonjour") == []
+
+
+def test_hybrid_retrieval_returns_context_above_relevance_threshold():
+    chunks = _hybrid_retriever(best_cosine=0.67).retrieve("Comment partager un compteur ?")
+
+    assert [c["text"] for c in chunks][:1] == ["extrait 0"]
+    assert len(chunks) == 3
+
+
+def test_repository_rag_config_sets_relevance_threshold():
+    from app.config import get_rag_config
+
+    assert get_rag_config()["hybrid"]["min_dense_score"] == 0.42

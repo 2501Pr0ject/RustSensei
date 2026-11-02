@@ -96,6 +96,10 @@ hybrid:
   enabled: true
   rrf_k: 60              # Constante de fusion Reciprocal Rank Fusion
   candidate_k: 15        # Candidats par canal avant fusion
+  # Pertinence minimale : sans extrait dense à au moins ce cosinus, aucun contexte
+  # n'est injecté. 0.42 écarte les salutations et questions hors Rust testées
+  # (0.30 à 0.41) et ne prive de documentation qu'1 question d'évaluation sur 91.
+  min_dense_score: 0.42
 
 # Graphe de connaissances Rust (KAG - elargissement des requetes)
 knowledge:

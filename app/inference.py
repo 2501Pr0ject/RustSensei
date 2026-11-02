@@ -103,12 +103,23 @@ def rag_index_id(manifest_path: Path = RAG_MANIFEST) -> str | None:
     return f"{manifest.get('build_timestamp')}|{manifest.get('total_chunks')}"
 
 
+def _rag_settings() -> dict | None:
+    """Reglages du RAG qui changent le contexte injecte (seuils, fusion, rerank...)."""
+    try:
+        from .config import get_rag_config
+
+        rag = get_rag_config()
+    except Exception:
+        return None
+    return {key: rag.get(key) for key in ("retrieval", "hybrid", "knowledge", "rerank", "augmentation")}
+
+
 def generation_signature(config: dict, manifest_path: Path = RAG_MANIFEST) -> str:
     """
     Empreinte de tout ce qui determine une reponse, hors question et historique.
 
-    Modele, prompt systeme, gabarit, echantillonnage effectif et index RAG : une
-    reponse en cache n'est resservie que si cette empreinte est identique.
+    Modele, prompt systeme, gabarit, echantillonnage effectif, index et reglages
+    RAG : une reponse en cache n'est resservie que si cette empreinte est identique.
     """
     prompt = config.get("prompt") or {}
     payload = {
@@ -117,6 +128,7 @@ def generation_signature(config: dict, manifest_path: Path = RAG_MANIFEST) -> st
         "template": prompt.get("template"),
         "sampling": sampling_params(config),
         "rag_index": rag_index_id(manifest_path),
+        "rag_settings": _rag_settings(),
     }
     digest = hashlib.sha256(
         json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")

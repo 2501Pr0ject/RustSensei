@@ -279,8 +279,10 @@ class RAGRetriever:
         """
         Récupère les chunks via fusion dense (FAISS) + lexicale (BM25, RRF).
 
-        Le seuil de similarité cosinus n'est pas appliqué ici : la fusion RRF
-        classe les candidats sans dépendre d'une échelle de scores commune.
+        Le seuil de similarité cosinus par extrait n'est pas appliqué ici : la
+        fusion RRF classe les candidats sans dépendre d'une échelle de scores
+        commune. Un seuil global (hybrid.min_dense_score) écarte en revanche les
+        questions sans rapport avec la documentation.
         """
         import numpy as np
 
@@ -296,6 +298,14 @@ class RAGRetriever:
         )
 
         scores, indices = self.index.search(np.array(query_embedding), candidate_k)
+
+        # Seuil de pertinence : si meme le meilleur extrait dense est loin de la
+        # question (salutation, question hors Rust), aucun contexte n'est injecte.
+        min_dense = hybrid_config.get("min_dense_score")
+        best_dense = float(scores[0][0]) if len(scores[0]) and indices[0][0] >= 0 else 0.0
+        if min_dense is not None and best_dense < float(min_dense):
+            return []
+
         dense_ranked = [int(idx) for idx in indices[0] if idx >= 0]
         dense_scores = {
             int(idx): float(score)
