@@ -18,6 +18,7 @@ from .inference import (
     ContextOverflowError,
     chat_ctx_size,
     cli_sampling_args,
+    model_name,
     overflow_message,
     sampling_params,
 )
@@ -290,7 +291,7 @@ def chat_loop(use_rag: bool = False):
 
             if retriever:
                 cached = response_cache.get(
-                    cache_query, embedder=cache_embedder
+                    cache_query, embedder=cache_embedder, model=model_name(config)
                 )
                 if cached is not None:
                     response = cached["response"]
@@ -322,6 +323,7 @@ def chat_loop(use_rag: bool = False):
                         response,
                         citations,
                         embedder=cache_embedder,
+                        model=model_name(config),
                     )
 
             history.append(

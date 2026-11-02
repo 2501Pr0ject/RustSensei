@@ -9,6 +9,7 @@ Le cache peut être persisté sur disque pour survivre aux redémarrages.
 
 import json
 import math
+import os
 import time
 from pathlib import Path
 from typing import Callable, Optional
@@ -79,6 +80,7 @@ class ResponseCache:
         query: str,
         now: Optional[float] = None,
         embedder: Optional[Embedder] = None,
+        model: Optional[str] = None,
     ) -> Optional[dict]:
         """
         Récupère une réponse mise en cache.
@@ -91,6 +93,7 @@ class ResponseCache:
             query: Question de l'utilisateur.
             now: Horloge injectable (tests).
             embedder: Fonction texte -> vecteur (cache sémantique).
+            model: Modèle courant (nom du GGUF) ; seules ses réponses sont servies.
 
         Returns:
             Dictionnaire {response, citations, timestamp} ou None si absent ou expiré.
@@ -103,14 +106,14 @@ class ResponseCache:
 
         key = self.normalize_key(query)
         entry = self._entries.get(key)
-        if entry is not None:
-            if not self._is_expired(entry, current):
-                self.hits += 1
-                return entry
+        if entry is not None and self._is_expired(entry, current):
             del self._entries[key]
             self._save()
+        elif entry is not None and self._same_model(entry, model):
+            self.hits += 1
+            return entry
 
-        entry = self._semantic_get(query, current, embedder)
+        entry = self._semantic_get(query, current, embedder, model)
         if entry is not None:
             self.hits += 1
             return entry
@@ -125,8 +128,9 @@ class ResponseCache:
         citations: Optional[list] = None,
         timestamp: Optional[float] = None,
         embedder: Optional[Embedder] = None,
+        model: Optional[str] = None,
     ) -> None:
-        """Met en cache une réponse générée (avec son embedding si disponible)."""
+        """Met en cache une réponse générée (avec son embedding et son modèle)."""
         if self.ttl_seconds <= 0:
             return
 
@@ -136,6 +140,8 @@ class ResponseCache:
             "citations": citations or [],
             "timestamp": timestamp if timestamp is not None else time.time(),
         }
+        if model is not None:
+            entry["model"] = model
 
         embedding = self._embed(query, embedder)
         if embedding is not None:
@@ -163,6 +169,17 @@ class ResponseCache:
             "path": str(self.path) if self.path is not None else None,
         }
 
+    @staticmethod
+    def _same_model(entry: dict, model: Optional[str]) -> bool:
+        """
+        Une réponse n'est servie qu'au modèle qui l'a produite.
+
+        Sans modèle demandé (appels historiques, tests), toute entrée convient.
+        Les entrées antérieures sans champ "model" ne sont pas servies à un
+        modèle donné : elles proviennent d'un modèle inconnu.
+        """
+        return model is None or entry.get("model") == model
+
     def _is_expired(self, entry: dict, now: float) -> bool:
         """Indique si une entrée a dépassé le TTL."""
         return now - entry.get("timestamp", 0.0) > self.ttl_seconds
@@ -172,6 +189,7 @@ class ResponseCache:
         query: str,
         now: float,
         embedder: Optional[Embedder],
+        model: Optional[str] = None,
     ) -> Optional[dict]:
         """Retourne l'entrée la plus proche si sa similarité dépasse le seuil."""
         if not self.semantic_enabled or embedder is None:
@@ -191,7 +209,7 @@ class ResponseCache:
                 continue
 
             embedding = entry.get("embedding")
-            if not embedding:
+            if not embedding or not self._same_model(entry, model):
                 continue
 
             score = self._cosine_similarity(query_embedding, embedding)
@@ -262,7 +280,18 @@ class ResponseCache:
 
 
 def _default_ttl_seconds() -> float:
-    """Retourne le TTL par défaut du cache depuis la configuration."""
+    """
+    Retourne le TTL par défaut du cache depuis la configuration.
+
+    La variable d'environnement RUSTSENSEI_CACHE_TTL le surcharge (0 désactive
+    le cache, par exemple pour mesurer la latence de génération).
+    """
+    env_ttl = os.environ.get("RUSTSENSEI_CACHE_TTL")
+    if env_ttl is not None:
+        try:
+            return float(env_ttl)
+        except ValueError:
+            pass
     try:
         config = get_rag_config()
         cache_config = config.get("cache") or {}

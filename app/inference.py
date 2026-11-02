@@ -84,6 +84,11 @@ def sampling_params(config: dict, model_path: str | None = None) -> dict:
     return params
 
 
+def model_name(config: dict) -> str:
+    """Nom du fichier GGUF utilise (identifie le modele, par exemple pour le cache)."""
+    return Path(config["paths"]["model"]).name
+
+
 def chat_ctx_size(config: dict) -> int:
     """Taille de contexte des chemins conversationnels (UI, /chat, CLI)."""
     return int((config.get("inference") or {}).get("n_ctx_chat", DEFAULT_CHAT_CTX))

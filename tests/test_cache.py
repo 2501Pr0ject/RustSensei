@@ -265,3 +265,44 @@ def test_composite_key_ignores_invalid_turns():
 
     assert "injection" not in key
     assert "user:question valide" in key
+
+
+def test_cache_serves_only_the_model_that_produced_the_answer():
+    from app.cache import ResponseCache
+
+    cache = ResponseCache(ttl_seconds=3600)
+    cache.set("Qu'est-ce qu'un Rc ?", "réponse 1.5B", model="qwen-1.5b.gguf")
+
+    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen-1.5b.gguf")["response"] == "réponse 1.5B"
+    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen3-4b.gguf") is None
+
+    cache.set("Qu'est-ce qu'un Rc ?", "réponse 4B", model="qwen3-4b.gguf")
+    assert cache.get("Qu'est-ce qu'un Rc ?", model="qwen3-4b.gguf")["response"] == "réponse 4B"
+
+
+def test_semantic_cache_ignores_other_models():
+    from app.cache import ResponseCache
+
+    cache = ResponseCache(ttl_seconds=3600, semantic_enabled=True, semantic_threshold=0.5)
+    embed = lambda text: [1.0, 0.0]  # noqa: E731 - meme vecteur : toujours proche
+    cache.set("Comment créer un thread ?", "réponse 1.5B", embedder=embed, model="a.gguf")
+
+    assert cache.get("Comment on crée un thread ?", embedder=embed, model="b.gguf") is None
+    assert cache.get("Comment on crée un thread ?", embedder=embed, model="a.gguf")["response"] == "réponse 1.5B"
+
+
+def test_legacy_entries_without_model_are_not_served_to_a_model():
+    from app.cache import ResponseCache
+
+    cache = ResponseCache(ttl_seconds=3600)
+    cache.set("question", "ancienne réponse")  # entrée antérieure, sans modèle
+
+    assert cache.get("question", model="qwen3-4b.gguf") is None
+    assert cache.get("question")["response"] == "ancienne réponse"
+
+
+def test_cache_ttl_env_override(monkeypatch):
+    from app.cache import _default_ttl_seconds
+
+    monkeypatch.setenv("RUSTSENSEI_CACHE_TTL", "0")
+    assert _default_ttl_seconds() == 0.0
