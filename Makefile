@@ -20,11 +20,12 @@ LLAMA_DIR := vendor/llama.cpp
 LLAMA_CLI := $(LLAMA_DIR)/build/bin/llama-completion
 
 # Modèle GGUF
-# Modèle par défaut : Qwen3-4B-Instruct-2507 (Apache 2.0). Qwen ne publie pas de
-# GGUF officiel pour ce modèle : quantification Q4_K_M de bartowski.
-# Référence d'évaluation : Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF (qwen2.5-coder-1.5b-instruct-q4_k_m.gguf).
-MODEL_REPO := bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF
-MODEL_FILE := Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+# Modèle de la démo : Qwen2.5-Coder-1.5B-Instruct (GGUF officiel Qwen, Apache 2.0).
+# Alternative plus juste mais ~5x plus lente sur M2 : Qwen3-4B-Instruct-2507
+#   make download-model MODEL_REPO=bartowski/Qwen_Qwen3-4B-Instruct-2507-GGUF \
+#                       MODEL_FILE=Qwen_Qwen3-4B-Instruct-2507-Q4_K_M.gguf
+MODEL_REPO := Qwen/Qwen2.5-Coder-1.5B-Instruct-GGUF
+MODEL_FILE := qwen2.5-coder-1.5b-instruct-q4_k_m.gguf
 MODEL_DIR := models
 MODEL_PATH := $(MODEL_DIR)/$(MODEL_FILE)
 
@@ -173,7 +174,7 @@ api: ## Lance le serveur API FastAPI
 # ============================================================================
 
 web: ## Lance le serveur frontend Vite (proxy /chat -> API)
-	cd frontend && npm run dev
+	cd frontend && ([ -d node_modules ] || npm ci) && npm run dev
 
 # ============================================================================
 # Évaluation
